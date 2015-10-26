@@ -13,6 +13,7 @@
 #include "chrono_irrlicht/ChBodySceneNode.h"
 #include "chrono_irrlicht/ChBodySceneNodeTools.h"
 #include "chrono_irrlicht/ChIrrAppInterface.h"
+#include "chrono/core/ChDistribution.h"
 
 #include <algorithm>
 #include <irrlicht.h>
@@ -132,7 +133,11 @@ class ParticleGenerator {
             // create the spheres
             for (int bi = 0; bi < nParticles; bi++) {
                 ChBodySceneNode* currRigidBody;
-                double sphrad = pSize + pDev * ChRandom();
+                //double sphrad = pSize + pDev * ChRandom(); **MODIFIED
+
+				ChZhangDistribution my_distribution(pSize, pSize / 3.0);
+				double sphrad = my_distribution.GetRandom();
+
                 double sphmass = (4 / 3) * CH_C_PI * pow(sphrad, 3) * sphdens;
                 double sphinertia = pow(sphrad, 2) * sphmass;
                 ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
@@ -1082,7 +1087,7 @@ int main(int argc, char* argv[]) {
     ChIrrWizard::add_typical_Sky(application.GetDevice());
     ChIrrWizard::add_typical_Lights(application.GetDevice(), irr::core::vector3df(20., 30., 25.),
                                     irr::core::vector3df(25., 25., -25.), 65.0, 75.);
-    ChIrrWizard::add_typical_Camera(application.GetDevice(), core::vector3df(3.5f, 2.5f, -2.4f));
+    ChIrrWizard::add_typical_Camera(application.GetDevice(), core::vector3df(1.5f, 1.5f, -0.8f));
 
     // create the soil bin, with a few initial particles inside
     // create_some_falling_items(mphysicalSystem, application.GetSceneManager(), application.GetVideoDriver());
