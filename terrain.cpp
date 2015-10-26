@@ -2,8 +2,8 @@
 //
 //  TERRAIN
 //
-// Written by ...
-//   and ...
+// Written by R.O.Kivugo
+//   and A.Tasora
 //
 ///////////////////////////////////////////////////
 
