@@ -393,7 +393,7 @@ class TestMech {
              double binLength = 2.0,
              double weightMass = 100.0,
              double springK = 25000,
-             double springD = 100) {
+             double springD = 200) {
         // create the soil bin, some particles, and the testing Mechanism
         video::ITexture* cubeMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("concrete.jpg").c_str());
         video::ITexture* rockMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("rock.jpg").c_str());
@@ -626,7 +626,7 @@ class MyEventReceiver : public IEventReceiver {
                     double pSize = 0.02,
                     double pDev = 0.02,
                     double maxTorque = 100.0,
-                    int maxParticles = 50) {
+                    int maxParticles = 100) {
         // store pointer to physical system & other stuff so we can tweak them by user keyboard
         this->mapp = app;
         // any rigid bodies that have their states modified by the GUI need to go here
