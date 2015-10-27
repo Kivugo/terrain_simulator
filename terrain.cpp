@@ -31,6 +31,9 @@ using namespace video;
 using namespace io;
 using namespace gui;
 
+double speed_rpm = 6;
+
+
 class ParticleGenerator {
   public:
     // data
@@ -478,7 +481,6 @@ class TestMech {
         mapp.GetSystem()->AddLink(torqueDriver);
         */
         // create a speed between the truss and wheel
-        double speed_rpm = 6;
         torqueDriver = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
         torqueDriver->Initialize(truss->GetBody(), wheelBody->GetBody(),
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
@@ -1151,7 +1153,7 @@ int main(int argc, char* argv[]) {
     SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, wheelMass, wheelInertia);
     // use cylinder tire
     double wheel_width = 0.6;
-    double wheel_d_outer = 1.15;  // outer radius
+    double wheel_d_outer = 1.15;  // outer radius  ???? = 0.8; ????
     double wheel_d_inner = 0.64;  // inner radius, only used for inertia calculation
     //	SoilbinWheel* mwheel = new SoilbinWheel(application,	wheelCMpos, wheelMass,	wheel_width, wheel_d_outer,
     // wheel_d_inner);
@@ -1192,12 +1194,17 @@ int main(int argc, char* argv[]) {
 
     while (application.GetDevice()->run()) {
 
-        if (mphysicalSystem.GetChTime() > release_time) {
+        if ((mphysicalSystem.GetChTime() > release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
             mwheel->wheel->GetBody()->SetBodyFixed(false);
             mTestMechanism->suspweight->GetBody()->SetBodyFixed(false);
             mTestMechanism->truss->GetBody()->SetBodyFixed(false);
             receiver.checkbox_wheelLocked->setChecked(false);
             mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
+            // set initial wheel horizontal speed.
+            double horiz_speed = -(speed_rpm/60*CH_C_2PI ) * wheel_d_outer;
+            mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
+            mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
+            mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
         }
         if (mphysicalSystem.GetChTime() > particle_off_time) {
             receiver.createParticles() = false;
