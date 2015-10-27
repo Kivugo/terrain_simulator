@@ -15,12 +15,14 @@
 #include "chrono_irrlicht/ChBodySceneNodeTools.h"
 #include "chrono_irrlicht/ChIrrAppInterface.h"
 #include "chrono/core/ChDistribution.h"
+#include "chrono_postprocess/ChGnuPlot.h"
 
 #include <algorithm>
 #include <irrlicht.h>
 
 using namespace chrono;
 using namespace chrono::collision;
+using namespace postprocess;
 using namespace irr;
 
 using namespace core;
@@ -136,7 +138,33 @@ class ParticleGenerator {
                 ChBodySceneNode* currRigidBody;
                 //double sphrad = pSize + pDev * ChRandom(); **MODIFIED
 
+                /*
+                // A Zhang distribution (weibull-like distribution)
 				ChZhangDistribution my_distribution(pSize, pSize / 3.0);
+				double sphrad = my_distribution.GetRandom();
+                */
+                // A sampled continuous distribution, from x-y values
+                ChMatrixDynamic<> mX(6,1);
+                ChMatrixDynamic<> mY(6,1);
+                // set x (diameters) values
+                mX(0) = 0.005;
+                mX(1) = 0.01;
+                mX(2) = 0.02;
+                mX(3) = 0.03;
+                mX(4) = 0.04;
+                mX(5) = 0.05;
+                // set y (probability density, also not normalized) 
+                mY(0) = 0.0;
+                mY(1) = 0.3;
+                mY(2) = 0.6;
+                mY(3) = 0.6;
+                mY(4) = 0.3;
+                mY(5) = 0.0;
+                // scale x if you want to 'stretch' the probability diameters, keeping the ratios
+                double scale_particle_diameters = 1;
+                mX = mX*scale_particle_diameters;
+
+				ChContinuumDistribution my_distribution(mX,mY);
 				double sphrad = my_distribution.GetRandom();
 
                 double sphmass = (4 / 3) * CH_C_PI * pow(sphrad, 3) * sphdens;
@@ -441,11 +469,23 @@ class TestMech {
         spindle->Initialize(truss->GetBody(), wheelBody->GetBody(),
                             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         mapp.GetSystem()->AddLink(spindle);
+        /*
         // create a torque between the truss and wheel
         torqueDriver = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
         torqueDriver->Initialize(truss->GetBody(), wheelBody->GetBody(),
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_TORQUE);
+        mapp.GetSystem()->AddLink(torqueDriver);
+        */
+        // create a speed between the truss and wheel
+        double speed_rpm = 6;
+        torqueDriver = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
+        torqueDriver->Initialize(truss->GetBody(), wheelBody->GetBody(),
+                                 ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
+        torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
+        ChSharedPtr< ChFunction_Const > myspeed( new ChFunction_Const);
+        myspeed->Set_yconst((speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
+        torqueDriver->Set_spe_funct(myspeed);
         mapp.GetSystem()->AddLink(torqueDriver);
 
         // ******
@@ -596,9 +636,9 @@ class MyEventReceiver : public IEventReceiver {
         // for getting output from the TM_Module module
         // initial checkbox values
         this->wheelLocked = true;
-        this->makeParticles = false;
+        this->makeParticles = true;
         //		this->applyTorque = false;
-        this->wheelCollision = false;
+        this->wheelCollision = true;
         this->pVisible = true;
         this->wheelVisible = true;
 
@@ -989,7 +1029,7 @@ class MyEventReceiver : public IEventReceiver {
     // helper functions, these are called in the time step loop
     const double getCurrentPsize() { return currParticleSize; }
     const double getCurrentPdev() { return currParticleDev; }
-    const bool createParticles() { return makeParticles; }
+    bool& createParticles() { return makeParticles; }
 
     // try to generate some particles. Returne T/F if anything was created
     const bool genParticles() {
@@ -1023,6 +1063,7 @@ class MyEventReceiver : public IEventReceiver {
     double currParticleFriction;  // coulomb friction coef, between 0-1
     double avgDensity;            // input/average density for soil particles
 
+  public:
     // menu items, checkboxes ids are: 2xxx
     //	gui::IGUIContextMenu* menu;
     gui::IGUICheckBox* checkbox_wheelLocked;  // ic = 2110
@@ -1071,6 +1112,10 @@ class MyEventReceiver : public IEventReceiver {
 int main(int argc, char* argv[]) {
     // Create a ChronoENGINE physical system
     ChSystem mphysicalSystem;
+
+    // ** user settings
+    double release_time = 2;
+    double particle_off_time = 1.8;
 
     // ** user input
     double wheelMass = 5.0;  // mass of wheel
@@ -1130,17 +1175,34 @@ int main(int argc, char* argv[]) {
 
     // set some integrator settings
     // mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_APGD);	// see if Toby's works
-    mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_SOR_MULTITHREAD);
-    mphysicalSystem.SetIterLCPmaxItersSpeed(70);
+    mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_SOR_MULTITHREAD); // this is fast but not precise
+    mphysicalSystem.SetIterLCPmaxItersSpeed(70); // remember! increase this for higher precision
     mphysicalSystem.SetIterLCPmaxItersStab(15);
     mphysicalSystem.SetParallelThreadNumber(4);
 
     // Use real-time step of the simulation, OR...
     application.SetStepManage(true);
-    application.SetTimestep(0.01);
-    application.SetTryRealtime(true);
+    application.SetTimestep(0.005);
+   // application.SetTryRealtime(true);
+
+    receiver.createParticles() = true;
+
+    ChStreamOutAsciiFile output_torque("data_torque.txt");
+    ChStreamOutAsciiFile output_speed("data_speed.txt");
 
     while (application.GetDevice()->run()) {
+
+        if (mphysicalSystem.GetChTime() > release_time) {
+            mwheel->wheel->GetBody()->SetBodyFixed(false);
+            mTestMechanism->suspweight->GetBody()->SetBodyFixed(false);
+            mTestMechanism->truss->GetBody()->SetBodyFixed(false);
+            receiver.checkbox_wheelLocked->setChecked(false);
+            mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
+        }
+        if (mphysicalSystem.GetChTime() > particle_off_time) {
+            receiver.createParticles() = false;
+        }  
+
         application.GetVideoDriver()->beginScene(true, true, SColor(255, 140, 161, 192));
         application.DrawAll();
         // draw the custom links
@@ -1163,7 +1225,22 @@ int main(int argc, char* argv[]) {
             }
         }
         application.GetVideoDriver()->endScene();
+
+        output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
+        output_speed  << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0/CH_C_2PI) << "\n";
     }
+
+    ChGnuPlot mplot1("__tmp_gnuplot_torque.gpl");
+    mplot1.SetGrid();
+    mplot1.SetLabelX("t [s]");
+    mplot1.SetLabelY("T [N/m]");
+    mplot1.Plot("data_torque.txt", 1, 2, "torque", " with lines lt -1 lw 2");
+
+    ChGnuPlot mplot2("__tmp_gnuplot_speed.gpl");
+    mplot2.SetGrid();
+    mplot2.SetLabelX("t [s]");
+    mplot2.SetLabelY("RPM");
+    mplot2.Plot("data_speed.txt", 1, 2, "speed", " with lines lt -1 lw 2");
 
     return 0;
 }
