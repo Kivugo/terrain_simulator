@@ -88,6 +88,17 @@ include_directories(${CHRONO_INCLUDE_DIRS})
 add_executable(terrain_project terrain.cpp)
 
 #--------------------------------------------------------------
+#         Avoid logging too many warnings for the Irrlicht unit
+
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+	SET(CHRONO_CSS_FLAGS "${CHRONO_CSS_FLAGS} -D_CRT_SECURE_NO_DEPRECATE" )  # avoids deprecation warnings
+    SET(CHRONO_CSS_FLAGS "${CHRONO_CSS_FLAGS} -D_SCL_SECURE_NO_DEPRECATE" )  # avoids deprecation warnings
+    SET(CHRONO_CSS_FLAGS "${CHRONO_CSS_FLAGS} -DNOMINMAX" ) # do not use MSVC's min/max macros
+	SET(CHRONO_CSS_FLAGS "${CHRONO_CSS_FLAGS} /wd4275")
+	SET(CHRONO_CSS_FLAGS "${CHRONO_CSS_FLAGS} /wd4996")
+ENDIF()
+
+#--------------------------------------------------------------
 # Set properties for your executable target
 # 
 # Note that here we define a macro CHRONO_DATA_DIR which will
