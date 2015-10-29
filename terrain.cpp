@@ -396,7 +396,7 @@ class TestMech {
              double binLength = 2.0,
              double weightMass = 100.0,
              double springK = 25000,
-             double springD = 200) {
+             double springD = 300) {
         // create the soil bin, some particles, and the testing Mechanism
         video::ITexture* cubeMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("concrete.jpg").c_str());
         video::ITexture* rockMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("rock.jpg").c_str());
@@ -1116,8 +1116,8 @@ int main(int argc, char* argv[]) {
     ChSystem mphysicalSystem;
 
     // ** user settings
-    double release_time = 1;
-    double particle_off_time = 0.8;
+    double release_time = 2;
+    double particle_off_time = 1.8;
 
     // ** user input
     double wheelMass = 5.0;  // mass of wheel
