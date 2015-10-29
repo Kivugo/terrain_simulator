@@ -486,7 +486,7 @@ class TestMech {
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
         ChSharedPtr< ChFunction_Const > myspeed( new ChFunction_Const);
-        myspeed->Set_yconst((speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
+        myspeed->Set_yconst(-(speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
         torqueDriver->Set_spe_funct(myspeed);
         mapp.GetSystem()->AddLink(torqueDriver);
 
@@ -1116,8 +1116,8 @@ int main(int argc, char* argv[]) {
     ChSystem mphysicalSystem;
 
     // ** user settings
-    double release_time = 2;
-    double particle_off_time = 1.8;
+    double release_time = 1;
+    double particle_off_time = 0.8;
 
     // ** user input
     double wheelMass = 5.0;  // mass of wheel
@@ -1147,7 +1147,7 @@ int main(int argc, char* argv[]) {
     // USER CAN CHOOSE BETWEEN TIRE TYPES HERE
     // *******
     // Create the wheel
-    ChVector<> wheelCMpos = ChVector<>(0, 0.5, 0.5);
+    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.5);
     ChVector<> wheelInertia = ChVector<>(1.0, 1.0, 1.0);
     // Use Trelleborg tire, with Alessandro's method of using convex hulls
     SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, wheelMass, wheelInertia);
@@ -1201,7 +1201,7 @@ int main(int argc, char* argv[]) {
             receiver.checkbox_wheelLocked->setChecked(false);
             mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
             // set initial wheel horizontal speed.
-            double horiz_speed = -(speed_rpm/60*CH_C_2PI ) * wheel_d_outer;
+            double horiz_speed = (speed_rpm/60*CH_C_2PI ) * wheel_d_outer;
             mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
             mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
             mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
