@@ -16,6 +16,7 @@
 #include "chrono_irrlicht/ChIrrAppInterface.h"
 #include "chrono/core/ChDistribution.h"
 #include "chrono_postprocess/ChGnuPlot.h"
+#include "chrono/physics/ChContactContainerBase.h"
 
 #include <algorithm>
 #include <irrlicht.h>
@@ -31,7 +32,33 @@ using namespace video;
 using namespace io;
 using namespace gui;
 
-double speed_rpm = 6;
+
+// Easy-to-use user settings - change these to modify the default simulation values
+
+double GLOBAL_speed_rpm = 5;
+double GLOBAL_friction  = 0.6;
+double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
+
+double GLOBAL_release_time = 4;     // time of wheel release
+double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
+double GLOBAL_particles_per_second = 10000; // particles per second
+
+double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
+double GLOBAL_wheelMass = 205.0;    // mass of wheel [kg] from Solidworks CAD, measured 3D Trelleborg rubber tire
+ChVector<> GLOBAL_wheelInertia = ChVector<>(72, 41, 41); // Inertia IxxIyyIzz [kgm^2] from Solidworks CAD, measured 3D Trelleborg rubber tire
+double GLOBAL_suspMass = 50.0;     // mass of suspended weight
+
+double GLOBAL_spring_stiffness = 12000; // stiffness of suspension;
+double GLOBAL_spring_damping = 800;   // damping of suspension;
+
+double GLOBAL_timestep = 0.005;     // timestep [s] for integration
+
+bool   GLOBAL_open_gnuplots = true;// if false, do not launch GNUplot at the end of simulation, if true, use GNUplot to show plots
+
+
+
+
+
 
 
 class ParticleGenerator {
@@ -44,9 +71,9 @@ class ParticleGenerator {
                       IVideoDriver* driver,
                       double width,
                       double len,
-                      double sphDensity = 100.0,
-                      double boxDensity = 100.0,
-                      double mu = 0.33) {
+                      double sphDensity = 1200.0,
+                      double boxDensity = 1000.0,
+                      double mu = 0.6) {
         // just set the data
         this->msys = mphysicalSystem;
         this->mscene = msceneManager;
@@ -69,6 +96,12 @@ class ParticleGenerator {
         this->pMass_s2 = 0.0;
         this->pMassMean = 0.0;
         this->pMassStdDev = 0.0;
+
+        particle_surface_material = ChSharedPtr<ChMaterialSurface>(new ChMaterialSurface);
+        particle_surface_material->SetFriction(GLOBAL_friction);
+        particle_surface_material->SetCohesion(GLOBAL_cohesion_force/GLOBAL_timestep); // cohesion is "Impulse per contact point": transform from "Force per contact point"
+        //particle_surface_material->SetRollingFriction(0.0025); // rolling friction parameter [m] . It is a length. Note: if different than 0, computation time is DOUBLE.
+        //particle_surface_material->SetSpinningFriction(0.0025); // spinning friction parameter [m] . It is a length. Note: if different than 0, computation time is DOUBLE.
     }
 
     ~ParticleGenerator() {
@@ -171,7 +204,8 @@ class ParticleGenerator {
 				double sphrad = my_distribution.GetRandom();
 
                 double sphmass = (4 / 3) * CH_C_PI * pow(sphrad, 3) * sphdens;
-                double sphinertia = pow(sphrad, 2) * sphmass;
+                double sphinertia = (2.0 / 5.0) * sphmass * pow(sphrad, 2);
+
                 ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
                 randrot.Normalize();
                 // randomize spawning position, take stack height into consideration
@@ -182,7 +216,8 @@ class ParticleGenerator {
                     msys, mscene, (4 / 3) * CH_C_PI * pow(sphrad, 3) * sphdens, currPos, sphrad, 15, 8,
                     this->particleParent);
                 currRigidBody->GetBody()->SetInertiaXX(ChVector<>(sphinertia, sphinertia, sphinertia));
-                currRigidBody->GetBody()->GetMaterialSurface()->SetFriction(this->mu);
+                // currRigidBody->GetBody()->GetMaterialSurface()->SetFriction(this->mu);
+                currRigidBody->GetBody()->SetMaterialSurface(this->particle_surface_material); // better: use a single material per all spheres
                 currRigidBody->GetBody()->SetRot(randrot);
                 // mrigidBody->addShadowVolumeSceneNode();
                 currRigidBody->setMaterialTexture(0, rockMap);
@@ -280,6 +315,8 @@ class ParticleGenerator {
     double pMass_s2;  // running square of mass
     double pMassMean;
     double pMassStdDev;  // running std. dev. of mass
+
+    ChSharedPtr<ChMaterialSurface> particle_surface_material; 
 };
 
 class SoilbinWheel {
@@ -322,6 +359,10 @@ class SoilbinWheel {
 
         // Complete the description.
         wheel->GetBody()->GetCollisionModel()->BuildModel();
+        wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+        wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
+        wheel->GetBody()->SetCollide(false);
+        wheel->GetBody()->SetCollide(true);
     }
 
     // use a hollow cylinder as the wheel body. Note, the last input arg doesn't do anything
@@ -395,8 +436,8 @@ class TestMech {
              double binWidth = 1.0,
              double binLength = 2.0,
              double weightMass = 100.0,
-             double springK = 25000,
-             double springD = 300) {
+             double springK = 2500000,
+             double springD = 3000) {
         // create the soil bin, some particles, and the testing Mechanism
         video::ITexture* cubeMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("concrete.jpg").c_str());
         video::ITexture* rockMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("rock.jpg").c_str());
@@ -427,6 +468,10 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(-binWidth / 2.0 - wallWidth / 2.0, 0, 0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
         wall1->GetBody()->SetBodyFixed(true);
+        wall1->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall1->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
+        wall1->GetBody()->SetCollide(false);
+        wall1->GetBody()->SetCollide(true);
         // wall1->setMaterialTexture(0,	cubeMap);
 
         // wall 2
@@ -434,6 +479,10 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(binWidth / 2.0 + wallWidth / 2.0, 0, 0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
         wall2->GetBody()->SetBodyFixed(true);
+        wall2->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall2->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
+        wall2->GetBody()->SetCollide(false);
+        wall2->GetBody()->SetCollide(true);
         // wall2->setMaterialTexture(0,	rockMap);
         wall2->setVisible(false);  // this wall will be transparent
 
@@ -446,6 +495,10 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, -binLength / 2.0 - wallWidth / 2.0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
         wall3->GetBody()->SetBodyFixed(true);
+        wall3->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall3->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
+        wall3->GetBody()->SetCollide(false);
+        wall3->GetBody()->SetCollide(true);
         wall3->setVisible(false);  // hide this one as well
         // wall3->setMaterialTexture(0,	wall3tex);
 
@@ -454,6 +507,11 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, binLength / 2.0 + wallWidth / 2.0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
         wall4->GetBody()->SetBodyFixed(true);
+        wall4->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall4->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
+        wall4->GetBody()->SetCollide(false);
+        wall4->GetBody()->SetCollide(true);
+
         // wall4->setMaterialTexture(0,	wall4tex);
 
         // ******
@@ -462,7 +520,7 @@ class TestMech {
         // *****
         video::ITexture* bluMap = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("blu.png").c_str());
         ChVector<> trussCM = wheelBody->GetBody()->GetPos();
-        truss = (ChBodySceneNode*)addChBodySceneNode_easyBox(mapp.GetSystem(), mapp.GetSceneManager(), 5.0, trussCM,
+        truss = (ChBodySceneNode*)addChBodySceneNode_easyBox(mapp.GetSystem(), mapp.GetSceneManager(), GLOBAL_truss_mass, trussCM,
                                                              QUNIT, ChVector<>(0.2, 0.2, 0.4));
         truss->setMaterialTexture(0, bluMap);
         // truss shouldn't be used for Collisions
@@ -486,7 +544,7 @@ class TestMech {
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
         ChSharedPtr< ChFunction_Const > myspeed( new ChFunction_Const);
-        myspeed->Set_yconst(-(speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
+        myspeed->Set_yconst(-(GLOBAL_speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
         torqueDriver->Set_spe_funct(myspeed);
         mapp.GetSystem()->AddLink(torqueDriver);
 
@@ -609,6 +667,48 @@ it)
 };
 */
 
+
+
+// This is the contact reporter class
+class _contact_reporter_class : public  chrono::ChReportContactCallback2 
+{
+    public:
+    ChStreamOutAsciiFile* mfile; // the file to save data into
+
+    virtual bool ReportContactCallback2(
+                                const ChVector<>& pA,             ///< get contact pA
+                                const ChVector<>& pB,             ///< get contact pB
+                                const ChMatrix33<>& plane_coord,  ///< get contact plane coordsystem (A column 'X' is contact normal)
+                                const double& distance,           ///< get contact distance
+                                const ChVector<>& react_forces,   ///< get react.forces (if already computed). In coordsystem 'plane_coord'
+                                const ChVector<>& react_torques,  ///< get react.torques, if rolling friction (if already computed).
+                                ChContactable* contactobjA,  ///< get model A (note: some containers may not support it and could be zero!)
+                                ChContactable* contactobjB   ///< get model B (note: some containers may not support it and could be zero!)
+        )
+    {
+        // For each contact, this function is executed. 
+        // In this example, saves on ascii file:
+        //   position xyz, direction xyz, normal impulse, tangent impulse U, tangent impulse V, modelA ID, modelB ID information is saved. 
+        (*mfile)    << pA.x << " " 
+                    << pA.y << " " 
+                    << pA.z << " " 
+                    << plane_coord.Get_A_Xaxis().x << " "
+                    << plane_coord.Get_A_Xaxis().y << " "
+                    << plane_coord.Get_A_Xaxis().z << " "
+                    << react_forces.x << " "
+                    << react_forces.y << " "
+                    << react_forces.z << " "
+                    << contactobjA->GetPhysicsItem()->GetIdentifier() << " "
+                    << contactobjB->GetPhysicsItem()->GetIdentifier() << "\n";
+
+        return true;  // to continue scanning contacts
+    }
+};
+
+
+
+
+
 class MyEventReceiver : public IEventReceiver {
   public:
     // keep the tabs public
@@ -628,7 +728,7 @@ class MyEventReceiver : public IEventReceiver {
                     double pSize = 0.02,
                     double pDev = 0.02,
                     double maxTorque = 100.0,
-                    int maxParticles = 100) {
+                    int maxParticles = GLOBAL_particles_per_second*GLOBAL_timestep*2) {
         // store pointer to physical system & other stuff so we can tweak them by user keyboard
         this->mapp = app;
         // any rigid bodies that have their states modified by the GUI need to go here
@@ -697,6 +797,10 @@ class MyEventReceiver : public IEventReceiver {
         checkbox_wheelCollision->setVisible(true);
         text_wheelCollision->setVisible(true);
         this->mwheel->wheel->GetBody()->SetCollide(wheelCollision);  // set IC of checkbox
+        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
+        this->mwheel->wheel->GetBody()->SetCollide(false);
+        this->mwheel->wheel->GetBody()->SetCollide(true);
                                                                      /*
                                                                              // ..add a GUI for turning torque on/off ( id = 2113 )
                                                                              checkbox_applyTorque = app->GetIGUIEnvironment()->addCheckBox(
@@ -760,7 +864,7 @@ class MyEventReceiver : public IEventReceiver {
         scrollbar_nParticlesGen->setPos(50);
         this->currNparticlesGen = nParticlesGenMax / 2;  // IC of this slider
         char message2[50];
-        sprintf(message2, "# p Gen: %d", this->currNparticlesGen);
+        sprintf(message2, "# part/step: %d", this->currNparticlesGen);
         text_nParticlesGen = mapp->GetIGUIEnvironment()->addStaticText(
             core::stringw(message2).c_str(), rect<s32>(160, y1 + 110, 300, y1 + 125), false, false, gad_tab_controls);
 
@@ -769,7 +873,7 @@ class MyEventReceiver : public IEventReceiver {
             true, rect<s32>(20, y1 + 140, 150, y1 + 155), gad_tab_controls, 1105);
         scrollbar_particleFriction->setMax(100);
         scrollbar_particleFriction->setPos(33);
-        this->currParticleFriction = 0.33;
+        this->currParticleFriction = GLOBAL_friction;
         char message3[50];
         sprintf(message3, "mu: %g", this->currParticleFriction);
         text_particleFriction = mapp->GetIGUIEnvironment()->addStaticText(
@@ -778,11 +882,12 @@ class MyEventReceiver : public IEventReceiver {
         // particle density, id = 1106
         scrollbar_particleDensity = mapp->GetIGUIEnvironment()->addScrollBar(
             true, rect<s32>(20, y1 + 170, 150, y1 + 185), gad_tab_controls, 1106);
-        scrollbar_particleDensity->setMax(100);
-        scrollbar_particleDensity->setPos(50);
+        scrollbar_particleDensity->setMax(2000);
+        scrollbar_particleDensity->setMin(0);
         this->avgDensity = this->mgenerator->getSphDensity();
         char message4[50];
         sprintf(message4, "rho [kg/m3]: %g", this->avgDensity);
+        scrollbar_particleDensity->setPos(this->avgDensity);
         text_particleDensity = mapp->GetIGUIEnvironment()->addStaticText(
             core::stringw(message4).c_str(), rect<s32>(160, y1 + 170, 300, y1 + 185), false, false, gad_tab_controls);
 
@@ -869,9 +974,9 @@ class MyEventReceiver : public IEventReceiver {
                     if (id == 1104)  // # particles to generate
                     {
                         s32 currPos = ((IGUIScrollBar*)event.GUIEvent.Caller)->getPos();
-                        this->currNparticlesGen = nParticlesGenMax + ((currPos - 50) / 50.0) * nParticlesGenMax;
+                        this->currNparticlesGen = (currPos / 100.0) * nParticlesGenMax;
                         char message[50];
-                        sprintf(message, "# p Gen: %d", this->currNparticlesGen);
+                        sprintf(message, "# part/step: %d", this->currNparticlesGen);
                         text_nParticlesGen->setText(core::stringw(message).c_str());
                     }
                     if (id == 1105)  // mu of particlers
@@ -887,7 +992,7 @@ class MyEventReceiver : public IEventReceiver {
                     if (id == 1106)  // density of spheres
                     {
                         s32 sliderPos = ((IGUIScrollBar*)event.GUIEvent.Caller)->getPos();
-                        double density = this->avgDensity + ((sliderPos - 50.0) / 100.0) * this->avgDensity;
+                        double density = sliderPos;
                         char message[50];
                         sprintf(message, "rho [kg/m3]: %g", density);
                         text_particleDensity->setText(core::stringw(message).c_str());
@@ -920,6 +1025,10 @@ class MyEventReceiver : public IEventReceiver {
                         GetLog() << checkbox_wheelCollision->isChecked() << "\n";
                         // activate/deactivate the wheel collision detection
                         this->mwheel->wheel->GetBody()->SetCollide(wheelCollision);
+                        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+                        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
+                        this->mwheel->wheel->GetBody()->SetCollide(false);
+                        this->mwheel->wheel->GetBody()->SetCollide(true);
                         return true;
                     }
                     /*
@@ -967,7 +1076,7 @@ class MyEventReceiver : public IEventReceiver {
         // wall 1
         ChCoordsys<> wall1Csys = this->mtester->wall1->GetBody()->GetCoord();
         wall1Csys.rot = chrono::Q_from_AngAxis(CH_C_PI / 2.0, VECT_Y);
-        wall1Csys.pos.x += .05;
+        wall1Csys.pos.x += .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 24, 20, wall1Csys,
                              video::SColor(255, 80, 130, 130), true);
         /*
@@ -980,13 +1089,13 @@ class MyEventReceiver : public IEventReceiver {
         */
         // wall 3
         ChCoordsys<> wall3Csys = this->mtester->wall3->GetBody()->GetCoord();
-        wall3Csys.pos.z += .05;
+        wall3Csys.pos.z += .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 10, 20, wall3Csys,
                              video::SColor(255, 80, 130, 130), true);
 
         // wall 4
         ChCoordsys<> wall4Csys = this->mtester->wall4->GetBody()->GetCoord();
-        wall4Csys.pos.z -= .05;
+        wall4Csys.pos.z -= .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 10, 20, wall4Csys,
                              video::SColor(255, 80, 130, 130), true);
     }
@@ -1036,7 +1145,6 @@ class MyEventReceiver : public IEventReceiver {
     // try to generate some particles. Returne T/F if anything was created
     const bool genParticles() {
         return mgenerator->create_some_falling_items(currParticleSize, currParticleDev, currNparticlesGen,
-                                                     // currNparticlesGen);
                                                      0);
     }
 
@@ -1115,19 +1223,12 @@ int main(int argc, char* argv[]) {
     // Create a ChronoENGINE physical system
     ChSystem mphysicalSystem;
 
-    // ** user settings
-    double release_time = 4;
-    double particle_off_time = 3.9;
-
-    // ** user input
-    double wheelMass = 5.0;  // mass of wheel
-    double suspMass = 10.0;  // mass of suspended weight
 
     // Create the Irrlicht visualization (open the Irrlicht device,
     // bind a simple user interface, etc. etc.)
     char header[150];
-    sprintf(header, "soil bin, mass wheel/weight = %g, %g ", wheelMass, suspMass);
-    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 640),
+    sprintf(header, "soil bin, mass wheel/weight = %g, %g ", GLOBAL_wheelMass, GLOBAL_suspMass);
+    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 768),
                                   false);
 
     // Easy shortcuts to add camera, lights, logo and sky in Irrlicht scene:
@@ -1147,22 +1248,22 @@ int main(int argc, char* argv[]) {
     // USER CAN CHOOSE BETWEEN TIRE TYPES HERE
     // *******
     // Create the wheel
-    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.5);
-    ChVector<> wheelInertia = ChVector<>(1.0, 1.0, 1.0);
+    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.45);
+    
     // Use Trelleborg tire, with Alessandro's method of using convex hulls
-    SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, wheelMass, wheelInertia);
+    SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, GLOBAL_wheelMass, GLOBAL_wheelInertia);
     // use cylinder tire
     double wheel_width = 0.6;
-    double wheel_d_outer = 1.15;  // outer radius  ???? = 0.8; ????
+    double wheel_d_outer = 1.42;  // outer diameter  (OK-checked with CAD model of Trelleborg tire)
     double wheel_d_inner = 0.64;  // inner radius, only used for inertia calculation
-    //	SoilbinWheel* mwheel = new SoilbinWheel(application,	wheelCMpos, wheelMass,	wheel_width, wheel_d_outer,
+    //SoilbinWheel* mwheel = new SoilbinWheel(application,	wheelCMpos, GLOBAL_wheelMass,	wheel_width, wheel_d_outer,
     // wheel_d_inner);
 
     // ***** TESTING MECHANISM
     // now, create the testing mechanism and attach the wheel to it
     double binWidth = 1.0;
     double binLen = 2.4;
-    TestMech* mTestMechanism = new TestMech(mwheel->wheel, application, binWidth, binLen, suspMass, 2500., 10.);
+    TestMech* mTestMechanism = new TestMech(mwheel->wheel, application, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
 
     // ***** PARTICLE GENERATOR
     // make a particle generator, that the sceneManager can use to easily dump a bunch of dirt in the bin
@@ -1184,29 +1285,32 @@ int main(int argc, char* argv[]) {
 
     // Use real-time step of the simulation, OR...
     application.SetStepManage(true);
-    application.SetTimestep(0.005);
+    application.SetTimestep(GLOBAL_timestep);
    // application.SetTryRealtime(true);
 
     receiver.createParticles() = true;
+    bool contacts_saved = false;
 
     ChStreamOutAsciiFile output_torque("data_torque.txt");
     ChStreamOutAsciiFile output_speed("data_speed.txt");
+    ChStreamOutAsciiFile output_slip("data_slip.txt");
+    ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
 
     while (application.GetDevice()->run()) {
 
-        if ((mphysicalSystem.GetChTime() > release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
+        if ((mphysicalSystem.GetChTime() > GLOBAL_release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
             mwheel->wheel->GetBody()->SetBodyFixed(false);
             mTestMechanism->suspweight->GetBody()->SetBodyFixed(false);
             mTestMechanism->truss->GetBody()->SetBodyFixed(false);
             receiver.checkbox_wheelLocked->setChecked(false);
             mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
             // set initial wheel horizontal speed.
-            double horiz_speed = (speed_rpm/60*CH_C_2PI ) * wheel_d_outer;
+            double horiz_speed = (GLOBAL_speed_rpm/60*CH_C_2PI ) * (wheel_d_outer/2); // = w * R
             mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
             mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
             mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
         }
-        if (mphysicalSystem.GetChTime() > particle_off_time) {
+        if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
             receiver.createParticles() = false;
         }  
 
@@ -1233,21 +1337,56 @@ int main(int argc, char* argv[]) {
         }
         application.GetVideoDriver()->endScene();
 
-        output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
-        output_speed  << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0/CH_C_2PI) << "\n";
+        if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.2) 
+        {
+            output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
+            output_speed  << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0/CH_C_2PI) << "\n";
+            output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
+            double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer/2) / mwheel->wheel->GetBody()->GetPos_dt().z) -1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
+            output_slip   << mphysicalSystem.GetChTime() << ", " << slip << "\n";
+        } 
+
+        if ((mphysicalSystem.GetChTime() >= GLOBAL_release_time + 1.0) && !contacts_saved)
+        {
+            // Use the contact callback object to save contacts:
+            _contact_reporter_class my_contact_rep;
+            ChStreamOutAsciiFile result_contacts("contacts.txt");
+            my_contact_rep.mfile = &result_contacts;
+            mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
+            contacts_saved = true;
+        }
     }
 
-    ChGnuPlot mplot1("__tmp_gnuplot_torque.gpl");
-    mplot1.SetGrid();
-    mplot1.SetLabelX("t [s]");
-    mplot1.SetLabelY("T [N/m]");
-    mplot1.Plot("data_torque.txt", 1, 2, "torque", " with lines lt -1 lw 2");
 
-    ChGnuPlot mplot2("__tmp_gnuplot_speed.gpl");
-    mplot2.SetGrid();
-    mplot2.SetLabelX("t [s]");
-    mplot2.SetLabelY("RPM");
-    mplot2.Plot("data_speed.txt", 1, 2, "speed", " with lines lt -1 lw 2");
+
+    if (GLOBAL_open_gnuplots) 
+    {
+        ChGnuPlot mplot1("__tmp_gnuplot_torque.gpl");
+        mplot1.SetGrid();
+        mplot1.SetLabelX("t [s]");
+        mplot1.SetLabelY("T [N/m]");
+        mplot1.Plot("data_torque.txt", 1, 2, "torque", " with lines lt -1 lw 2");
+
+        ChGnuPlot mplot2("__tmp_gnuplot_speed.gpl");
+        mplot2.SetGrid();
+        mplot2.SetLabelX("t [s]");
+        mplot2.SetLabelY("RPM");
+        mplot2.Plot("data_speed.txt", 1, 2, "angular vel.", " with lines lt -1 lw 2");
+        mplot2.SetRangeY(-2,10);
+
+        ChGnuPlot mplot3("__tmp_gnuplot_slip.gpl");
+        mplot3.SetGrid();
+        mplot3.SetLabelX("t [s]");
+        mplot3.SetLabelY("slip");
+        mplot3.Plot("data_slip.txt", 1, 2, "slip", " with lines lt  1 lw 2");
+
+        ChGnuPlot mplot4("__tmp_gnuplot_horspeed.gpl");
+        mplot4.SetGrid();
+        mplot4.SetLabelX("t [s]");
+        mplot4.SetLabelY("v [m/s]");
+        mplot4.Plot("data_horspeed.txt", 1, 2, "speed", " with lines lt  2 lw 2");
+        mplot4.SetRangeY(0,2);
+    }
 
     return 0;
 }
