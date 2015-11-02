@@ -1116,8 +1116,8 @@ int main(int argc, char* argv[]) {
     ChSystem mphysicalSystem;
 
     // ** user settings
-    double release_time = 2;
-    double particle_off_time = 1.8;
+    double release_time = 4;
+    double particle_off_time = 3.9;
 
     // ** user input
     double wheelMass = 5.0;  // mass of wheel
@@ -1127,7 +1127,7 @@ int main(int argc, char* argv[]) {
     // bind a simple user interface, etc. etc.)
     char header[150];
     sprintf(header, "soil bin, mass wheel/weight = %g, %g ", wheelMass, suspMass);
-    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 768),
+    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 640),
                                   false);
 
     // Easy shortcuts to add camera, lights, logo and sky in Irrlicht scene:
