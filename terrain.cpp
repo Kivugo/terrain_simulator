@@ -1234,7 +1234,7 @@ int main(int argc, char* argv[]) {
     // USER CAN CHOOSE BETWEEN TIRE TYPES HERE
     // *******
     // Create the wheel
-    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.45);
+    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.85);
     
     // Use Trelleborg tire, with Alessandro's method of using convex hulls
     SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, GLOBAL_wheelMass, GLOBAL_wheelInertia);
