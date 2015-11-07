@@ -359,10 +359,8 @@ class SoilbinWheel {
 
         // Complete the description.
         wheel->GetBody()->GetCollisionModel()->BuildModel();
-        wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+        wheel->GetBody()->GetCollisionModel()->SetFamily(8); // number 0..15, use 3 to mark family of tire
         wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
-        wheel->GetBody()->SetCollide(false);
-        wheel->GetBody()->SetCollide(true);
     }
 
     // use a hollow cylinder as the wheel body. Note, the last input arg doesn't do anything
@@ -468,10 +466,8 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(-binWidth / 2.0 - wallWidth / 2.0, 0, 0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
         wall1->GetBody()->SetBodyFixed(true);
-        wall1->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall1->GetBody()->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall1->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
-        wall1->GetBody()->SetCollide(false);
-        wall1->GetBody()->SetCollide(true);
         // wall1->setMaterialTexture(0,	cubeMap);
 
         // wall 2
@@ -479,10 +475,8 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(binWidth / 2.0 + wallWidth / 2.0, 0, 0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
         wall2->GetBody()->SetBodyFixed(true);
-        wall2->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall2->GetBody()->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall2->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
-        wall2->GetBody()->SetCollide(false);
-        wall2->GetBody()->SetCollide(true);
         // wall2->setMaterialTexture(0,	rockMap);
         wall2->setVisible(false);  // this wall will be transparent
 
@@ -495,10 +489,8 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, -binLength / 2.0 - wallWidth / 2.0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
         wall3->GetBody()->SetBodyFixed(true);
-        wall3->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall3->GetBody()->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall3->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
-        wall3->GetBody()->SetCollide(false);
-        wall3->GetBody()->SetCollide(true);
         wall3->setVisible(false);  // hide this one as well
         // wall3->setMaterialTexture(0,	wall3tex);
 
@@ -507,10 +499,8 @@ class TestMech {
             mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, binLength / 2.0 + wallWidth / 2.0),
             ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
         wall4->GetBody()->SetBodyFixed(true);
-        wall4->GetBody()->GetCollisionModel()->SetFamilyGroup(4); // number 0..15, use 4 to mark family of walls
+        wall4->GetBody()->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall4->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
-        wall4->GetBody()->SetCollide(false);
-        wall4->GetBody()->SetCollide(true);
 
         // wall4->setMaterialTexture(0,	wall4tex);
 
@@ -797,10 +787,8 @@ class MyEventReceiver : public IEventReceiver {
         checkbox_wheelCollision->setVisible(true);
         text_wheelCollision->setVisible(true);
         this->mwheel->wheel->GetBody()->SetCollide(wheelCollision);  // set IC of checkbox
-        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamily(8); // number 0..15, use 3 to mark family of tire
         this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
-        this->mwheel->wheel->GetBody()->SetCollide(false);
-        this->mwheel->wheel->GetBody()->SetCollide(true);
                                                                      /*
                                                                              // ..add a GUI for turning torque on/off ( id = 2113 )
                                                                              checkbox_applyTorque = app->GetIGUIEnvironment()->addCheckBox(
@@ -1025,10 +1013,8 @@ class MyEventReceiver : public IEventReceiver {
                         GetLog() << checkbox_wheelCollision->isChecked() << "\n";
                         // activate/deactivate the wheel collision detection
                         this->mwheel->wheel->GetBody()->SetCollide(wheelCollision);
-                        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyGroup(8); // number 0..15, use 3 to mark family of tire
+                        this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamily(8); // number 0..15, use 3 to mark family of tire
                         this->mwheel->wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
-                        this->mwheel->wheel->GetBody()->SetCollide(false);
-                        this->mwheel->wheel->GetBody()->SetCollide(true);
                         return true;
                     }
                     /*
@@ -1248,7 +1234,7 @@ int main(int argc, char* argv[]) {
     // USER CAN CHOOSE BETWEEN TIRE TYPES HERE
     // *******
     // Create the wheel
-    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.45);
+    ChVector<> wheelCMpos = ChVector<>(0, 0.5, -0.85);
     
     // Use Trelleborg tire, with Alessandro's method of using convex hulls
     SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, GLOBAL_wheelMass, GLOBAL_wheelInertia);
