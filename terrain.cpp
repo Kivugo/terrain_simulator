@@ -1228,7 +1228,7 @@ int main(int argc, char* argv[]) {
     // bind a simple user interface, etc. etc.)
     char header[150];
     sprintf(header, "soil bin, mass wheel/weight = %g, %g ", GLOBAL_wheelMass, GLOBAL_suspMass);
-    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 768),
+    ChIrrAppInterface application(&mphysicalSystem, core::stringw(header).c_str(), core::dimension2d<u32>(1024, 640),
                                   false);
 
     // Easy shortcuts to add camera, lights, logo and sky in Irrlicht scene:
