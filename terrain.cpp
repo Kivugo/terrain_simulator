@@ -197,7 +197,7 @@ class ParticleGenerator {
                 mY(4) = 0.3;
                 mY(5) = 0.0;
                 // scale x if you want to 'stretch' the probability diameters, keeping the ratios
-                double scale_particle_diameters = 0.5;
+                double scale_particle_diameters = 0.25;
                 mX = mX*scale_particle_diameters;
 
 				ChContinuumDistribution my_distribution(mX,mY);
