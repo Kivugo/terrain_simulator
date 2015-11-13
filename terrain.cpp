@@ -39,8 +39,8 @@ double GLOBAL_speed_rpm = 5;
 double GLOBAL_friction  = 0.6;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
-double GLOBAL_release_time = 5;     // time of wheel release
-double GLOBAL_particle_off_time = 4.8; // time of end creation of particles
+double GLOBAL_release_time = 10;     // time of wheel release
+double GLOBAL_particle_off_time = 9.8; // time of end creation of particles
 double GLOBAL_particles_per_second = 10000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
