@@ -26,7 +26,6 @@ using namespace chrono::collision;
 using namespace postprocess;
 using namespace irr;
 
-
 using namespace core;
 using namespace scene;
 using namespace video;
@@ -40,8 +39,8 @@ double GLOBAL_speed_rpm = 5;
 double GLOBAL_friction  = 0.6;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
-double GLOBAL_release_time = 4;     // time of wheel release
-double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
+double GLOBAL_release_time = 10;     // time of wheel release
+double GLOBAL_particle_off_time = 9.8; // time of end creation of particles
 double GLOBAL_particles_per_second = 10000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
@@ -56,10 +55,7 @@ double GLOBAL_timestep = 0.005;     // timestep [s] for integration
 
 bool   GLOBAL_open_gnuplots = true;// if false, do not launch GNUplot at the end of simulation, if true, use GNUplot to show plots
 
-double GLOBAL_cohesion = 0;
-double GLOBAL_compliance = 0;
-
-
+int    GLOBAL_save_contacts_each = 10;
 
 
 
@@ -363,7 +359,7 @@ class SoilbinWheel {
 
         // Complete the description.
         wheel->GetBody()->GetCollisionModel()->BuildModel();
-        wheel->GetBody()->GetCollisionModel()->SetFamily(8); // number 0..15, use 8 to mark family of tire
+        wheel->GetBody()->GetCollisionModel()->SetFamily(8); // number 0..15, use 3 to mark family of tire
         wheel->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
     }
 
@@ -763,8 +759,6 @@ class MyEventReceiver : public IEventReceiver {
         gad_tab_soil = gad_tabbed->addTab(L"Soil State");
         gad_text_soilState = mapp->GetIGUIEnvironment()->addStaticText(L"SS", core::rect<s32>(10, 10, 290, 250), true,
                                                                        true, gad_tab_soil);
-		
-
 
         // **** GUI CONTROLS ***
         // -------- Wheel controls
@@ -823,7 +817,6 @@ class MyEventReceiver : public IEventReceiver {
         checkbox_createParticles->setVisible(true);
         text_createParticles->setVisible(true);
 
-		
         // add a checkbox to make particle visibility turn on/off, id = 2114
         checkbox_particlesVisible = app->GetIGUIEnvironment()->addCheckBox(
             pVisible, core::rect<s32>(180, y1 + 20, 195, y1 + 35), gad_tab_controls, 2114);
@@ -1054,11 +1047,11 @@ class MyEventReceiver : public IEventReceiver {
     }
 
     void drawSprings() {
-        std::vector<chrono::ChLink*>::iterator iterlink = mapp->GetSystem()->Get_linklist()->begin();
+        std::vector< chrono::ChSharedPtr<chrono::ChLink> >::iterator iterlink = mapp->GetSystem()->Get_linklist()->begin();
         // .. draw the spring constraints as simplified spring helix
         iterlink = mapp->GetSystem()->Get_linklist()->begin();
         while (iterlink != mapp->GetSystem()->Get_linklist()->end()) {
-            if (ChLinkSpring* mylinkspri = ChDynamicCast(ChLinkSpring, (*iterlink)))
+            if (ChSharedPtr<chrono::ChLinkSpring> mylinkspri = (*iterlink).DynamicCastTo<chrono::ChLinkSpring>())
                 ChIrrTools::drawSpring(mapp->GetVideoDriver(), 0.05, mylinkspri->GetEndPoint1Abs(),
                                        mylinkspri->GetEndPoint2Abs(), video::SColor(255, 150, 20, 20), 80, 15, true);
             iterlink++;
@@ -1288,8 +1281,12 @@ int main(int argc, char* argv[]) {
     ChStreamOutAsciiFile output_speed("data_speed.txt");
     ChStreamOutAsciiFile output_slip("data_slip.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
+    
+    int stepnumber = 0;
 
     while (application.GetDevice()->run()) {
+
+        stepnumber++;
 
         if ((mphysicalSystem.GetChTime() > GLOBAL_release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
             mwheel->wheel->GetBody()->SetBodyFixed(false);
@@ -1339,16 +1336,17 @@ int main(int argc, char* argv[]) {
             output_slip   << mphysicalSystem.GetChTime() << ", " << slip << "\n";
         } 
 
-        if ((mphysicalSystem.GetChTime() >= GLOBAL_release_time + 1.0) && !contacts_saved)
+        if (stepnumber % GLOBAL_save_contacts_each  == 0)
         {
-            // Use the contact callback object to save contacts:
+             // Use the contact callback object to save contacts:
+            char contactfilename[200];
+            sprintf(contactfilename, "%s%05d%s", "contacts", stepnumber, ".txt");  // ex: contacts00020.tx
             _contact_reporter_class my_contact_rep;
-            ChStreamOutAsciiFile result_contacts("contacts.txt");
+            ChStreamOutAsciiFile result_contacts(contactfilename);
             my_contact_rep.mfile = &result_contacts;
             mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
-            contacts_saved = true;
         }
-    }
+    }  // end loop 
 
 
 
