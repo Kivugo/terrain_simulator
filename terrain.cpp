@@ -55,7 +55,7 @@ double GLOBAL_timestep = 0.005;     // timestep [s] for integration
 
 bool   GLOBAL_open_gnuplots = true;// if false, do not launch GNUplot at the end of simulation, if true, use GNUplot to show plots
 
-
+int    GLOBAL_save_contacts_each = 10;
 
 
 
@@ -1281,8 +1281,12 @@ int main(int argc, char* argv[]) {
     ChStreamOutAsciiFile output_speed("data_speed.txt");
     ChStreamOutAsciiFile output_slip("data_slip.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
+    
+    int stepnumber = 0;
 
     while (application.GetDevice()->run()) {
+
+        stepnumber++;
 
         if ((mphysicalSystem.GetChTime() > GLOBAL_release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
             mwheel->wheel->GetBody()->SetBodyFixed(false);
@@ -1332,16 +1336,17 @@ int main(int argc, char* argv[]) {
             output_slip   << mphysicalSystem.GetChTime() << ", " << slip << "\n";
         } 
 
-        if ((mphysicalSystem.GetChTime() >= GLOBAL_release_time + 1.0) && !contacts_saved)
+        if (stepnumber % GLOBAL_save_contacts_each  == 0)
         {
-            // Use the contact callback object to save contacts:
+             // Use the contact callback object to save contacts:
+            char contactfilename[200];
+            sprintf(contactfilename, "%s%05d%s", "contacts", stepnumber, ".txt");  // ex: contacts00020.tx
             _contact_reporter_class my_contact_rep;
-            ChStreamOutAsciiFile result_contacts("contacts.txt");
+            ChStreamOutAsciiFile result_contacts(contactfilename);
             my_contact_rep.mfile = &result_contacts;
             mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
-            contacts_saved = true;
         }
-    }
+    }  // end loop 
 
 
 
