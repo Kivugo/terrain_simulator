@@ -197,7 +197,7 @@ class ParticleGenerator {
                 mY(4) = 0.3;
                 mY(5) = 0.0;
                 // scale x if you want to 'stretch' the probability diameters, keeping the ratios
-                double scale_particle_diameters = 0.25;
+                double scale_particle_diameters = 1.0;
                 mX = mX*scale_particle_diameters;
 
 				ChContinuumDistribution my_distribution(mX,mY);
@@ -1282,6 +1282,10 @@ int main(int argc, char* argv[]) {
     ChStreamOutAsciiFile output_slip("data_slip.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
     
+	GetLog() << "The ID of the tire is " << mwheel->wheel->GetBody()->GetIdentifier() << "\n";
+	GetLog() << "The ID of the wall1 is " << mTestMechanism->wall1->GetBody()->GetIdentifier() << "\n";
+	GetLog() << "The ID of the wall2 is " << mTestMechanism->wall2->GetBody()->GetIdentifier() << "\n";
+
     int stepnumber = 0;
 
 	while (application.GetDevice()->run()) {
@@ -1335,21 +1339,21 @@ int main(int argc, char* argv[]) {
 			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
 			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
 		}
-	{
-		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.1)
 	
-
-		if (stepnumber % GLOBAL_save_contacts_each == 0)
-        {
-             // Use the contact callback object to save contacts:
-            char contactfilename[200];
-            sprintf(contactfilename, "%s%05d%s", "contacts", stepnumber, ".txt");  // ex: contacts00020.tx
-            _contact_reporter_class my_contact_rep;
-            ChStreamOutAsciiFile result_contacts(contactfilename);
-            my_contact_rep.mfile = &result_contacts;
-            mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
-        }
-	}
+		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time) // save contact file after release time
+		{
+			if (stepnumber % GLOBAL_save_contacts_each == 0)
+			{
+				// Use the contact callback object to save contacts:
+				char contactfilename[200];
+				sprintf(contactfilename, "%s%05d%s", "contacts", stepnumber, ".txt");  // ex: contacts00020.tx
+				_contact_reporter_class my_contact_rep;
+				ChStreamOutAsciiFile result_contacts(contactfilename);
+				my_contact_rep.mfile = &result_contacts;
+				mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
+			}
+		}
+	
     }  // end loop 
 
 
