@@ -39,8 +39,8 @@ double GLOBAL_speed_rpm = 5;
 double GLOBAL_friction  = 0.6;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
-double GLOBAL_release_time = 10;     // time of wheel release
-double GLOBAL_particle_off_time = 9.8; // time of end creation of particles
+double GLOBAL_release_time = 4;     // time of wheel release
+double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
 double GLOBAL_particles_per_second = 10000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
@@ -1284,59 +1284,62 @@ int main(int argc, char* argv[]) {
     
     int stepnumber = 0;
 
-    while (application.GetDevice()->run()) {
+	while (application.GetDevice()->run()) {
 
-        stepnumber++;
+		stepnumber++;
 
-        if ((mphysicalSystem.GetChTime() > GLOBAL_release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
-            mwheel->wheel->GetBody()->SetBodyFixed(false);
-            mTestMechanism->suspweight->GetBody()->SetBodyFixed(false);
-            mTestMechanism->truss->GetBody()->SetBodyFixed(false);
-            receiver.checkbox_wheelLocked->setChecked(false);
-            mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
-            // set initial wheel horizontal speed.
-            double horiz_speed = (GLOBAL_speed_rpm/60*CH_C_2PI ) * (wheel_d_outer/2); // = w * R
-            mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
-            mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
-            mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0,0,horiz_speed));
-        }
-        if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
-            receiver.createParticles() = false;
-        }  
+		if ((mphysicalSystem.GetChTime() > GLOBAL_release_time) && (mwheel->wheel->GetBody()->GetBodyFixed() == true)) {
+			mwheel->wheel->GetBody()->SetBodyFixed(false);
+			mTestMechanism->suspweight->GetBody()->SetBodyFixed(false);
+			mTestMechanism->truss->GetBody()->SetBodyFixed(false);
+			receiver.checkbox_wheelLocked->setChecked(false);
+			mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_BARZILAIBORWEIN); // this is precise but slower
+			// set initial wheel horizontal speed.
+			double horiz_speed = (GLOBAL_speed_rpm / 60 * CH_C_2PI) * (wheel_d_outer / 2); // = w * R
+			mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
+			mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
+			mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
+		}
+		if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
+			receiver.createParticles() = false;
+		}
 
-        application.GetVideoDriver()->beginScene(true, true, SColor(255, 140, 161, 192));
-        application.DrawAll();
-        // draw the custom links
-        receiver.drawSprings();
-        receiver.drawGrid();
-        // output relevant soil, wheel data if the tab is selected
-        if (receiver.gad_tab_soil->isVisible())
-            receiver.drawSoilOutput();
-        if (receiver.gad_tab_wheel->isVisible())
-            receiver.drawWheelOutput();
-        receiver.drawWheelOutput();
-        // apply torque to the wheel
-        mTestMechanism->applyTorque();
+		application.GetVideoDriver()->beginScene(true, true, SColor(255, 140, 161, 192));
+		application.DrawAll();
+		// draw the custom links
+		receiver.drawSprings();
+		receiver.drawGrid();
+		// output relevant soil, wheel data if the tab is selected
+		if (receiver.gad_tab_soil->isVisible())
+			receiver.drawSoilOutput();
+		if (receiver.gad_tab_wheel->isVisible())
+			receiver.drawWheelOutput();
+		receiver.drawWheelOutput();
+		// apply torque to the wheel
+		mTestMechanism->applyTorque();
 
-        application.DoStep();
-        if (!application.GetPaused()) {
-            // add bodies to the system?
-            if (receiver.createParticles()) {
-                receiver.genParticles();
-            }
-        }
-        application.GetVideoDriver()->endScene();
+		application.DoStep();
+		if (!application.GetPaused()) {
+			// add bodies to the system?
+			if (receiver.createParticles()) {
+				receiver.genParticles();
+			}
+		}
+		application.GetVideoDriver()->endScene();
 
-        if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.2) 
-        {
-            output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
-            output_speed  << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0/CH_C_2PI) << "\n";
-            output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
-            double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer/2) / mwheel->wheel->GetBody()->GetPos_dt().z) -1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
-            output_slip   << mphysicalSystem.GetChTime() << ", " << slip << "\n";
-        } 
+		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.2)
+		{
+			output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
+			output_speed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0 / CH_C_2PI) << "\n";
+			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
+			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
+			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
+		}
+	{
+		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.1)
+	
 
-        if (stepnumber % GLOBAL_save_contacts_each  == 0)
+		if (stepnumber % GLOBAL_save_contacts_each == 0)
         {
              // Use the contact callback object to save contacts:
             char contactfilename[200];
@@ -1346,6 +1349,7 @@ int main(int argc, char* argv[]) {
             my_contact_rep.mfile = &result_contacts;
             mphysicalSystem.GetContactContainer()->ReportAllContacts2(&my_contact_rep);
         }
+	}
     }  // end loop 
 
 
