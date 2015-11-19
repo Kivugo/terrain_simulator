@@ -39,9 +39,9 @@ double GLOBAL_speed_rpm = 5;
 double GLOBAL_friction  = 0.6;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
-double GLOBAL_release_time = 4;     // time of wheel release
-double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
-double GLOBAL_particles_per_second = 10000; // particles per second
+double GLOBAL_release_time = 8;     // time of wheel release
+double GLOBAL_particle_off_time = 7.0; // time of end creation of particles
+double GLOBAL_particles_per_second = 80000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
 double GLOBAL_wheelMass = 205.0;    // mass of wheel [kg] from Solidworks CAD, measured 3D Trelleborg rubber tire
@@ -197,7 +197,7 @@ class ParticleGenerator {
                 mY(4) = 0.3;
                 mY(5) = 0.0;
                 // scale x if you want to 'stretch' the probability diameters, keeping the ratios
-                double scale_particle_diameters = 1.0;
+                double scale_particle_diameters = 0.25;
                 mX = mX*scale_particle_diameters;
 
 				ChContinuumDistribution my_distribution(mX,mY);
