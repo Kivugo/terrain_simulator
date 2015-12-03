@@ -35,13 +35,13 @@ using namespace gui;
 
 // Easy-to-use user settings - change these to modify the default simulation values
 
-double GLOBAL_speed_rpm = 5;
-double GLOBAL_friction  = 0.6;
+double GLOBAL_speed_rpm = 6;
+double GLOBAL_friction  = 0.75;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
-double GLOBAL_release_time = 8;     // time of wheel release
-double GLOBAL_particle_off_time = 7.0; // time of end creation of particles
-double GLOBAL_particles_per_second = 80000; // particles per second
+double GLOBAL_release_time = 4;     // time of wheel release
+double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
+double GLOBAL_particles_per_second = 20000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
 double GLOBAL_wheelMass = 205.0;    // mass of wheel [kg] from Solidworks CAD, measured 3D Trelleborg rubber tire
@@ -773,6 +773,15 @@ class MyEventReceiver : public IEventReceiver {
         this->mtester->truss->GetBody()->SetBodyFixed(wheelLocked);
         this->mtester->suspweight->GetBody()->SetBodyFixed(wheelLocked);
 
+		//set compactor controls
+		checkbox_compactorLocked = app->GetIGUIEnvironment()->addCheckBox(compactorLocked, core::rect<s32>(130, 60, 195, 75),
+			gad_tab_controls, 2116);
+		text_compactorLocked = app->GetIGUIEnvironment()->addStaticText(L"Compactor Locked", core::rect<s32>(155, 60, 290, 75),
+			false, false, gad_tab_controls);
+		checkbox_compactorLocked->setVisible(true);
+		text_compactorLocked->setVisible(true);
+		//this->ChBodySceneNode*compactor->compactor->GetBody()->SetBodyFixed(compactorLocked);// set IC of checkbox
+
         // turn wheel visibility on/off, ie = 2115
         checkbox_wheelVisible = app->GetIGUIEnvironment()->addCheckBox(wheelVisible, core::rect<s32>(180, 30, 195, 45),
                                                                        gad_tab_controls, 2115);
@@ -1140,13 +1149,16 @@ class MyEventReceiver : public IEventReceiver {
     SoilbinWheel* mwheel;
     TestMech* mtester;
     ParticleGenerator* mgenerator;
+	ChBodySceneNode* compactor;
     // for check boxes
     bool wheelLocked;     // id = 2110
+	bool compactorLocked;     // id = 2116
     bool makeParticles;   // 2111
     bool wheelCollision;  // 2112
                           //	bool applyTorque;	// 2113
     bool pVisible;        //	2114
     bool wheelVisible;    // 2115
+	bool compactroLocked; // 2016
 
     // particle size, deviation
     double particleSize0;         // initial
@@ -1162,7 +1174,7 @@ class MyEventReceiver : public IEventReceiver {
   public:
     // menu items, checkboxes ids are: 2xxx
     //	gui::IGUIContextMenu* menu;
-    gui::IGUICheckBox* checkbox_wheelLocked;  // ic = 2110
+    gui::IGUICheckBox* checkbox_wheelLocked;  // id = 2110
     gui::IGUIStaticText* text_wheelLocked;
     gui::IGUICheckBox* checkbox_createParticles;  // id = 2111
     gui::IGUIStaticText* text_createParticles;
@@ -1174,6 +1186,10 @@ class MyEventReceiver : public IEventReceiver {
     gui::IGUIStaticText* text_particlesVisible;
     gui::IGUICheckBox* checkbox_wheelVisible;  // id = 2115
     gui::IGUIStaticText* text_wheelVisible;
+
+	//set check box for compactor
+	gui::IGUICheckBox* checkbox_compactorLocked;  // id = 2116
+	gui::IGUIStaticText* text_compactorLocked;
 
     // scroll bars, ids are: 1xxx
     IGUIScrollBar* scrollbar_pSize;  // particle size, id = 1101
@@ -1249,7 +1265,7 @@ int main(int argc, char* argv[]) {
     // now, create the testing mechanism and attach the wheel to it
     double binWidth = 1.0;
     double binLen = 2.4;
-    TestMech* mTestMechanism = new TestMech(mwheel->wheel, application, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
+	TestMech* mTestMechanism = new TestMech(mwheel->wheel, application, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
 
     // ***** PARTICLE GENERATOR
     // make a particle generator, that the sceneManager can use to easily dump a bunch of dirt in the bin
