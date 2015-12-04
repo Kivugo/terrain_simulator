@@ -304,7 +304,7 @@ class ParticleGenerator {
     // density of shape primitives
     double sphDens;
     double boxDens;
-    float mu;  // friction coef
+    float mu;  // friction coefficient
 
     // for statistics
     double pRadMean;
@@ -420,6 +420,7 @@ class TestMech {
     ChBodySceneNode* wall2;
     ChBodySceneNode* wall3;
     ChBodySceneNode* wall4;
+	ChBodySceneNode* compactor;
     ChSharedPtr<ChLinkSpring> spring;
     ChSharedPtr<ChLinkEngine> torqueDriver;
     ChSharedPtr<ChLinkLockRevolute> spindle;
@@ -501,6 +502,17 @@ class TestMech {
         wall4->GetBody()->SetBodyFixed(true);
         wall4->GetBody()->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall4->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
+		
+		//create a compactor to compact the particles before the interaction
+		compactor = (ChBodySceneNode*)addChBodySceneNode_easyBox(
+			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 1.8, 0),//compactor initial position above soilbin
+			ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, wallWidth, binLength + wallWidth / 2.0));
+		compactor->GetBody()->SetBodyFixed(true);
+		compactor->GetBody()->GetMaterialSurface()->SetFriction(
+			0.0);
+		compactor->GetBody()->GetCollisionModel()->SetFamily(5);// set family name of the compactor
+		compactor->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);// compactor does not collide with tyre
+		compactor->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);//compactor does not collide with the wall
 
         // wall4->setMaterialTexture(0,	wall4tex);
 
@@ -701,19 +713,22 @@ class _contact_reporter_class : public  chrono::ChReportContactCallback2
 
 class MyEventReceiver : public IEventReceiver {
   public:
+	  
     // keep the tabs public
     gui::IGUITabControl* gad_tabbed;
     gui::IGUITab* gad_tab_controls;
     gui::IGUITab* gad_tab_wheel;
     gui::IGUITab* gad_tab_soil;
+	
 
     // @param pSize particle radius
     // @param pDev multiplier added to ChRandom()
     // @param maxTorque max slider torque applied to wheel
     // @param maxParticles max number of particles to generate each spawning event
-    MyEventReceiver(ChIrrAppInterface* app,
-                    SoilbinWheel* wheel,
+	MyEventReceiver(ChIrrAppInterface* app,
+					SoilbinWheel* wheel,
                     TestMech* tester,
+					//ChBodySceneNode*compactor,
                     ParticleGenerator* particleGenerator,
                     double pSize = 0.02,
                     double pDev = 0.02,
@@ -725,9 +740,11 @@ class MyEventReceiver : public IEventReceiver {
         this->mwheel = wheel;
         this->mtester = tester;
         this->mgenerator = particleGenerator;
+		//this->ChBodySceneNode*compactor = compactor;
         // for getting output from the TM_Module module
         // initial checkbox values
         this->wheelLocked = true;
+		this->compactorLocked = true;
         this->makeParticles = true;
         //		this->applyTorque = false;
         this->wheelCollision = true;
@@ -759,6 +776,8 @@ class MyEventReceiver : public IEventReceiver {
         gad_tab_soil = gad_tabbed->addTab(L"Soil State");
         gad_text_soilState = mapp->GetIGUIEnvironment()->addStaticText(L"SS", core::rect<s32>(10, 10, 290, 250), true,
                                                                        true, gad_tab_soil);
+				
+
 
         // **** GUI CONTROLS ***
         // -------- Wheel controls
@@ -1297,6 +1316,7 @@ int main(int argc, char* argv[]) {
     ChStreamOutAsciiFile output_speed("data_speed.txt");
     ChStreamOutAsciiFile output_slip("data_slip.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
+	ChStreamOutAsciiFile output_CMpos_y("data_CMpos_y.txt");
     
 	GetLog() << "The ID of the tire is " << mwheel->wheel->GetBody()->GetIdentifier() << "\n";
 	GetLog() << "The ID of the wall1 is " << mTestMechanism->wall1->GetBody()->GetIdentifier() << "\n";
