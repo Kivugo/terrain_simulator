@@ -41,7 +41,7 @@ double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact po
 
 double GLOBAL_release_time = 4;     // time of wheel release
 double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
-double GLOBAL_particles_per_second = 20000; // particles per second
+double GLOBAL_particles_per_second = 10000; // particles per second
 
 double GLOBAL_truss_mass = 100.0;   // mass of the truss (tire rim, spindle, etc.) 
 double GLOBAL_wheelMass = 205.0;    // mass of wheel [kg] from Solidworks CAD, measured 3D Trelleborg rubber tire
@@ -55,7 +55,7 @@ double GLOBAL_timestep = 0.005;     // timestep [s] for integration
 
 bool   GLOBAL_open_gnuplots = true;// if false, do not launch GNUplot at the end of simulation, if true, use GNUplot to show plots
 
-int    GLOBAL_save_contacts_each = 10;
+int    GLOBAL_save_contacts_each = 20;
 
 
 
@@ -197,7 +197,7 @@ class ParticleGenerator {
                 mY(4) = 0.3;
                 mY(5) = 0.0;
                 // scale x if you want to 'stretch' the probability diameters, keeping the ratios
-                double scale_particle_diameters = 0.25;
+                double scale_particle_diameters = 1.0;
                 mX = mX*scale_particle_diameters;
 
 				ChContinuumDistribution my_distribution(mX,mY);
@@ -505,7 +505,7 @@ class TestMech {
 		
 		//create a compactor to compact the particles before the interaction
 		compactor = (ChBodySceneNode*)addChBodySceneNode_easyBox(
-			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 1.8, 0),//compactor initial position above soilbin
+			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 1.5, 0),//compactor initial position above soilbin
 			ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, wallWidth, binLength + wallWidth / 2.0));
 		compactor->GetBody()->SetBodyFixed(true);
 		compactor->GetBody()->GetMaterialSurface()->SetFriction(
