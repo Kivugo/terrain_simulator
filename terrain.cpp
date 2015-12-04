@@ -1319,6 +1319,8 @@ int main(int argc, char* argv[]) {
 			mwheel->wheel->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
 			mTestMechanism->suspweight->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
 			mTestMechanism->truss->GetBody()->SetPos_dt(ChVector<>(0, 0, horiz_speed));
+			
+			
 		}
 		if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
 			receiver.createParticles() = false;
@@ -1354,6 +1356,7 @@ int main(int argc, char* argv[]) {
 			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
 			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
 			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
+			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().y << "\n";
 		}
 	
 		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time) // save contact file after release time
@@ -1401,6 +1404,13 @@ int main(int argc, char* argv[]) {
         mplot4.SetLabelY("v [m/s]");
         mplot4.Plot("data_horspeed.txt", 1, 2, "speed", " with lines lt  2 lw 2");
         mplot4.SetRangeY(0,2);
+
+		ChGnuPlot mplot5("__tmp_gnuplot_CMpos_y.gpl");
+		mplot5.SetGrid();
+		mplot5.SetLabelX("t [s]");
+		mplot5.SetLabelY("y Position [m]");
+		mplot5.Plot("data_CMpos_y.txt", 1, 2, "Position", " with lines lt  2 lw 2");
+
     }
 
     return 0;
