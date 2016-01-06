@@ -1371,6 +1371,17 @@ int main(int argc, char* argv[]) {
 			receiver.createParticles() = false;
 		}
 
+        if ((mphysicalSystem.GetChTime() > GLOBAL_compactor_release_time) && (mTestMechanism->compactor->GetBody()->GetBodyFixed() == true)) {
+            mTestMechanism->compactor->GetBody()->SetBodyFixed(false);
+            mTestMechanism->compactor->GetBody()->SetPos(ChVector<>(0,GLOBAL_compactor_height,0));
+            mTestMechanism->compactor->setVisible(true);
+        }
+        if ((mphysicalSystem.GetChTime() > GLOBAL_compactor_removal_time) && (mTestMechanism->compactor->GetBody()->GetBodyFixed() == false)) {
+            mTestMechanism->compactor->GetBody()->SetBodyFixed(true);
+            mTestMechanism->compactor->GetBody()->SetPos(ChVector<>(0,2,0));
+            mTestMechanism->compactor->setVisible(false);
+        }
+
 		application.GetVideoDriver()->beginScene(true, true, SColor(255, 140, 161, 192));
 		application.DrawAll();
 		// draw the custom links
