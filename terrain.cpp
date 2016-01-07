@@ -420,7 +420,7 @@ class TestMech {
     ChBodySceneNode* wall2;
     ChBodySceneNode* wall3;
     ChBodySceneNode* wall4;
-	ChBodySceneNode* compactor;
+	ChBodySceneNode* compactor;  // particles pree-compress
     ChSharedPtr<ChLinkSpring> spring;
     ChSharedPtr<ChLinkEngine> torqueDriver;
     ChSharedPtr<ChLinkLockRevolute> spindle;
