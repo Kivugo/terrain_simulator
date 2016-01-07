@@ -39,6 +39,11 @@ double GLOBAL_speed_rpm = 6;
 double GLOBAL_friction  = 0.75;
 double GLOBAL_cohesion_force  = 0;  // maximum traction force [N] per contact point 
 
+double GLOBAL_compactor_release_time = 4;     // time of compactor release
+double GLOBAL_compactor_removal_time = 5;     // time of compactor removal
+double GLOBAL_compactor_height = 0.4;         // height of center of compactor on y when releasing
+double GLOBAL_compactor_mass = 100;           // total mass of compactor
+
 double GLOBAL_release_time = 4;     // time of wheel release
 double GLOBAL_particle_off_time = 3.8; // time of end creation of particles
 double GLOBAL_particles_per_second = 10000; // particles per second
@@ -505,7 +510,7 @@ class TestMech {
 		
 		//create a compactor to compact the particles before the interaction
 		compactor = (ChBodySceneNode*)addChBodySceneNode_easyBox(
-			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 1.5, 0),//compactor initial position above soilbin
+			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, GLOBAL_compactor_height, 0),//compactor initial position above soilbin
 			ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, wallWidth, binLength + wallWidth / 2.0));
 		compactor->GetBody()->SetBodyFixed(true);
 		compactor->GetBody()->GetMaterialSurface()->SetFriction(
@@ -513,6 +518,12 @@ class TestMech {
 		compactor->GetBody()->GetCollisionModel()->SetFamily(5);// set family name of the compactor
 		compactor->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);// compactor does not collide with tyre
 		compactor->GetBody()->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);//compactor does not collide with the wall
+        compactor->setVisible(false); // initially do not show compactor until it is falling
+
+        compactor->GetBody()->SetMass(GLOBAL_compactor_mass);
+        compactor->GetBody()->SetInertiaXX(ChVector<>(binLength*binLength*GLOBAL_compactor_mass,
+                                                      binLength*binLength*GLOBAL_compactor_mass,
+                                                      binLength*binLength*GLOBAL_compactor_mass)); // approx. xx yy zz inertias (should not matter a lot)
 
         // wall4->setMaterialTexture(0,	wall4tex);
 
@@ -728,7 +739,6 @@ class MyEventReceiver : public IEventReceiver {
 	MyEventReceiver(ChIrrAppInterface* app,
 					SoilbinWheel* wheel,
                     TestMech* tester,
-					//ChBodySceneNode*compactor,
                     ParticleGenerator* particleGenerator,
                     double pSize = 0.02,
                     double pDev = 0.02,
@@ -740,7 +750,6 @@ class MyEventReceiver : public IEventReceiver {
         this->mwheel = wheel;
         this->mtester = tester;
         this->mgenerator = particleGenerator;
-		//this->ChBodySceneNode*compactor = compactor;
         // for getting output from the TM_Module module
         // initial checkbox values
         this->wheelLocked = true;
@@ -799,7 +808,7 @@ class MyEventReceiver : public IEventReceiver {
 			false, false, gad_tab_controls);
 		checkbox_compactorLocked->setVisible(true);
 		text_compactorLocked->setVisible(true);
-		//this->ChBodySceneNode*compactor->compactor->GetBody()->SetBodyFixed(compactorLocked);// set IC of checkbox
+		this->mtester->compactor->GetBody()->SetBodyFixed(compactorLocked);// set IC of checkbox
 
         // turn wheel visibility on/off, ie = 2115
         checkbox_wheelVisible = app->GetIGUIEnvironment()->addCheckBox(wheelVisible, core::rect<s32>(180, 30, 195, 45),
@@ -1026,6 +1035,22 @@ class MyEventReceiver : public IEventReceiver {
                         this->mtester->truss->GetBody()->SetBodyFixed(wheelLocked);
                         return true;
                     }
+                    if (id == 2116) {
+                        compactorLocked = checkbox_compactorLocked->isChecked();
+                        GetLog() << checkbox_compactorLocked->isChecked() << "\n";
+                        // activate/deactivate compactor locking 
+                        if (compactorLocked) {
+                            this->mtester->compactor->GetBody()->SetBodyFixed(true);
+                            this->mtester->compactor->GetBody()->SetPos(ChVector<>(0,2,0));
+                            this->mtester->compactor->setVisible(false);
+                        }
+                        else {
+                            this->mtester->compactor->GetBody()->SetBodyFixed(false);
+                            this->mtester->compactor->GetBody()->SetPos(ChVector<>(0,GLOBAL_compactor_height,0));
+                            this->mtester->compactor->setVisible(true);
+                        }
+                        return true;
+                    }
                     if (id == 2111) {
                         makeParticles = checkbox_createParticles->isChecked();
                         GetLog() << checkbox_createParticles->isChecked() << "\n";
@@ -1168,7 +1193,7 @@ class MyEventReceiver : public IEventReceiver {
     SoilbinWheel* mwheel;
     TestMech* mtester;
     ParticleGenerator* mgenerator;
-	ChBodySceneNode* compactor;
+
     // for check boxes
     bool wheelLocked;     // id = 2110
 	bool compactorLocked;     // id = 2116
@@ -1345,6 +1370,17 @@ int main(int argc, char* argv[]) {
 		if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
 			receiver.createParticles() = false;
 		}
+
+        if ((mphysicalSystem.GetChTime() > GLOBAL_compactor_release_time) && (mTestMechanism->compactor->GetBody()->GetBodyFixed() == true)) {
+            mTestMechanism->compactor->GetBody()->SetBodyFixed(false);
+            mTestMechanism->compactor->GetBody()->SetPos(ChVector<>(0,GLOBAL_compactor_height,0));
+            mTestMechanism->compactor->setVisible(true);
+        }
+        if ((mphysicalSystem.GetChTime() > GLOBAL_compactor_removal_time) && (mTestMechanism->compactor->GetBody()->GetBodyFixed() == false)) {
+            mTestMechanism->compactor->GetBody()->SetBodyFixed(true);
+            mTestMechanism->compactor->GetBody()->SetPos(ChVector<>(0,2,0));
+            mTestMechanism->compactor->setVisible(false);
+        }
 
 		application.GetVideoDriver()->beginScene(true, true, SColor(255, 140, 161, 192));
 		application.DrawAll();
