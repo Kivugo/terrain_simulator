@@ -1340,6 +1340,7 @@ int main(int argc, char* argv[]) {
     ChStreamOutAsciiFile output_torque("data_torque.txt");
     ChStreamOutAsciiFile output_speed("data_speed.txt");
     ChStreamOutAsciiFile output_slip("data_slip.txt");
+	ChStreamOutAsciiFile output_slip1("data_slip1.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
 	ChStreamOutAsciiFile output_CMpos_y("data_CMpos_y.txt");
     
@@ -1410,8 +1411,10 @@ int main(int argc, char* argv[]) {
 			output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
 			output_speed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0 / CH_C_2PI) << "\n";
 			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
-			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1
+			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1 Braking state
 			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
+			double slip1 = 1.0 - (mwheel->wheel->GetBody()->GetPos_dt().z) / (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2)); // SAE J670 definition of slip ratio: 1-(v/w*R) Driving state
+			output_slip1 << mphysicalSystem.GetChTime() << ", " << slip1 << "\n";
 			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().y << "\n";
 		}
 	
@@ -1466,6 +1469,12 @@ int main(int argc, char* argv[]) {
 		mplot5.SetLabelX("t [s]");
 		mplot5.SetLabelY("y Position [m]");
 		mplot5.Plot("data_CMpos_y.txt", 1, 2, "Position", " with lines lt  2 lw 2");
+
+		ChGnuPlot mplot6("__tmp_gnuplot_slip1.gpl");
+		mplot6.SetGrid();
+		mplot6.SetLabelX("t [s]");
+		mplot6.SetLabelY("slip1");
+		mplot6.Plot("data_slip1.txt", 1, 2, "slip1", " with lines lt  1 lw 2");
 
     }
 
