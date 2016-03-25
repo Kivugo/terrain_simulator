@@ -1413,7 +1413,7 @@ int main(int argc, char* argv[]) {
 			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos_dt().z << "\n";
 			double slip = (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetBody()->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1 Braking state
 			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
-			double slip1 = 1.0 - (mwheel->wheel->GetBody()->GetPos_dt().z) / (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2)); // SAE J670 definition of slip ratio: 1-(v/w*R) Driving state
+			double slip1 = 1.0 - (mwheel->wheel->GetBody()->GetPos_dt().z) / (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2)); // definition of slip ratio: 1-(v/w*R) Driving state
 			output_slip1 << mphysicalSystem.GetChTime() << ", " << slip1 << "\n";
 			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().y << "\n";
 		}
