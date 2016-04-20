@@ -1343,6 +1343,8 @@ int main(int argc, char* argv[]) {
 	ChStreamOutAsciiFile output_slip1("data_slip1.txt");
     ChStreamOutAsciiFile output_horspeed("data_horspeed.txt");
 	ChStreamOutAsciiFile output_CMpos_y("data_CMpos_y.txt");
+	ChStreamOutAsciiFile output_CMpos_x("data_CMpos_x.txt");
+	ChStreamOutAsciiFile output_CMpos_z("data_CMpos_z.txt");
     
 	GetLog() << "The ID of the tire is " << mwheel->wheel->GetBody()->GetIdentifier() << "\n";
 	GetLog() << "The ID of the wall1 is " << mTestMechanism->wall1->GetBody()->GetIdentifier() << "\n";
@@ -1406,7 +1408,7 @@ int main(int argc, char* argv[]) {
 		}
 		application.GetVideoDriver()->endScene();
 
-		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time + 0.2)
+		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time)
 		{
 			output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
 			output_speed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetWvel_loc().x *(60.0 / CH_C_2PI) << "\n";
@@ -1416,6 +1418,8 @@ int main(int argc, char* argv[]) {
 			double slip1 = 1.0 - (mwheel->wheel->GetBody()->GetPos_dt().z) / (mwheel->wheel->GetBody()->GetWvel_loc().x * (wheel_d_outer / 2)); // definition of slip ratio: 1-(v/w*R) Driving state
 			output_slip1 << mphysicalSystem.GetChTime() << ", " << slip1 << "\n";
 			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().y << "\n";
+			output_CMpos_x << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().x << "\n";
+			output_CMpos_z << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetBody()->GetPos().z << "\n";
 		}
 	
 		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time) // save contact file after release time
@@ -1469,6 +1473,18 @@ int main(int argc, char* argv[]) {
 		mplot5.SetLabelX("t [s]");
 		mplot5.SetLabelY("y Position [m]");
 		mplot5.Plot("data_CMpos_y.txt", 1, 2, "Position", " with lines lt  2 lw 2");
+
+		ChGnuPlot mplot7("__tmp_gnuplot_CMpos_x.gpl");
+		mplot7.SetGrid();
+		mplot7.SetLabelX("t [s]");
+		mplot7.SetLabelY("x Position [m]");
+		mplot7.Plot("data_CMpos_x.txt", 1, 2, "Position", " with lines lt  2 lw 2");
+
+		ChGnuPlot mplot8("__tmp_gnuplot_CMpos_z.gpl");
+		mplot8.SetGrid();
+		mplot8.SetLabelX("t [s]");
+		mplot8.SetLabelY("z Position [m]");
+		mplot8.Plot("data_CMpos_z.txt", 1, 2, "Position", " with lines lt  2 lw 2");
 
 		ChGnuPlot mplot6("__tmp_gnuplot_slip1.gpl");
 		mplot6.SetGrid();
