@@ -338,12 +338,21 @@ class SoilbinWheel {
         IAnimatedMesh* tireMesh =
             mapplication.GetSceneManager()->getMesh(GetChronoDataFile("tractor_wheel.obj").c_str());
 
+
         wheel = (ChBodySceneNode*)addChBodySceneNode(mapplication.GetSystem(), mapplication.GetSceneManager(),
                                                      tireMesh,  // this mesh only for visualization
                                                      mass, mposition);
 
         wheel->GetBody()->SetInertiaXX(inertia);
         wheel->GetBody()->GetMaterialSurface()->SetFriction(0.4f);
+
+		//ChTriangleMeshConnected mmesh;
+		//mmesh.LoadWavefrontMesh(GetChronoDataFile("tire_combined_15_lugs_h_30.obj"), false, true);
+
+		//mfalling->GetCollisionModel()->ClearModel();
+		//mfalling->GetCollisionModel()->AddTriangleMesh(mmesh, false, false, VNULL, ChMatrix33<>(1), 0.005);
+		//mfalling->GetCollisionModel()->BuildModel();
+		//mfalling->SetCollide(true);
 
         // turn collision off to start, toggle with checkbox
         wheel->GetBody()->SetCollide(true);
@@ -1294,12 +1303,13 @@ int main(int argc, char* argv[]) {
     // USER CAN CHOOSE BETWEEN TIRE TYPES HERE
     // *******
     // Create the wheel
-    ChVector<> wheelCMpos = ChVector<>(0, 1.2, -0.99);
+    ChVector<> wheelCMpos = ChVector<>(0, 1.2, -0.8);
     
     // Use Trelleborg tire, with Alessandro's method of using convex hulls
+
     SoilbinWheel* mwheel = new SoilbinWheel(application, wheelCMpos, GLOBAL_wheelMass, GLOBAL_wheelInertia);
     // use cylinder tire
-    double wheel_width = 0.6;
+    double wheel_width = 0.5;
     double wheel_d_outer = 1.42;  // outer diameter  (OK-checked with CAD model of Trelleborg tire)
     double wheel_d_inner = 0.64;  // inner radius, only used for inertia calculation
     //SoilbinWheel* mwheel = new SoilbinWheel(application,	wheelCMpos, GLOBAL_wheelMass,	wheel_width, wheel_d_outer,
@@ -1474,6 +1484,12 @@ int main(int argc, char* argv[]) {
 		mplot5.SetLabelY("y Position [m]");
 		mplot5.Plot("data_CMpos_y.txt", 1, 2, "Position", " with lines lt  2 lw 2");
 
+		ChGnuPlot mplot6("__tmp_gnuplot_slip1.gpl");
+		mplot6.SetGrid();
+		mplot6.SetLabelX("t [s]");
+		mplot6.SetLabelY("slip1");
+		mplot6.Plot("data_slip1.txt", 1, 2, "slip1", " with lines lt  1 lw 2");
+
 		ChGnuPlot mplot7("__tmp_gnuplot_CMpos_x.gpl");
 		mplot7.SetGrid();
 		mplot7.SetLabelX("t [s]");
@@ -1486,11 +1502,7 @@ int main(int argc, char* argv[]) {
 		mplot8.SetLabelY("z Position [m]");
 		mplot8.Plot("data_CMpos_z.txt", 1, 2, "Position", " with lines lt  2 lw 2");
 
-		ChGnuPlot mplot6("__tmp_gnuplot_slip1.gpl");
-		mplot6.SetGrid();
-		mplot6.SetLabelX("t [s]");
-		mplot6.SetLabelY("slip1");
-		mplot6.Plot("data_slip1.txt", 1, 2, "slip1", " with lines lt  1 lw 2");
+		
 
     }
 
