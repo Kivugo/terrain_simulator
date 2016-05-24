@@ -10,6 +10,7 @@
 
 #include "chrono/core/ChRealtimeStep.h"
 #include "chrono/physics/ChSystem.h"
+#include "chrono/physics/ChBodyEasy.h"
 
 #include "chrono_irrlicht/ChBodySceneNode.h"
 #include "chrono_irrlicht/ChBodySceneNodeTools.h"
@@ -17,20 +18,28 @@
 #include "chrono/core/ChDistribution.h"
 #include "chrono_postprocess/ChGnuPlot.h"
 #include "chrono/physics/ChContactContainerBase.h"
+#include "chrono/physics/ChParticlesClones.h"
+#include "chrono/assets/ChTexture.h"
+#include "chrono/assets/ChTriangleMeshShape.h"
+#include "chrono/geometry/ChTriangleMeshConnected.h"
 
+#include "chrono_irrlicht/ChIrrApp.h"
 #include <algorithm>
 #include <irrlicht.h>
 
 using namespace chrono;
+using namespace chrono::geometry;
+using namespace chrono::irrlicht;
 using namespace chrono::collision;
 using namespace postprocess;
 using namespace irr;
 
-using namespace core;
-using namespace scene;
-using namespace video;
-using namespace io;
-using namespace gui;
+using namespace irr;
+using namespace irr::core;
+using namespace irr::scene;
+using namespace irr::video;
+using namespace irr::io;
+using namespace irr::gui;
 
 
 // Easy-to-use user settings - change these to modify the default simulation values
@@ -102,7 +111,7 @@ class ParticleGenerator {
         this->pMassMean = 0.0;
         this->pMassStdDev = 0.0;
 
-        particle_surface_material = ChSharedPtr<ChMaterialSurface>(new ChMaterialSurface);
+		auto particle_surface_material = std::make_shared<ChMaterialSurface>(new ChMaterialSurface);
         particle_surface_material->SetFriction(GLOBAL_friction);
         particle_surface_material->SetCohesion(GLOBAL_cohesion_force/GLOBAL_timestep); // cohesion is "Impulse per contact point": transform from "Force per contact point"
         //particle_surface_material->SetRollingFriction(0.0025); // rolling friction parameter [m] . It is a length. Note: if different than 0, computation time is DOUBLE.
@@ -222,7 +231,7 @@ class ParticleGenerator {
                     this->particleParent);
                 currRigidBody->GetBody()->SetInertiaXX(ChVector<>(sphinertia, sphinertia, sphinertia));
                 // currRigidBody->GetBody()->GetMaterialSurface()->SetFriction(this->mu);
-                currRigidBody->GetBody()->SetMaterialSurface(this->particle_surface_material); // better: use a single material per all spheres
+                currRigidBody->GetBody()->GetMaterialSurface->SetMaterialSurface(GLOBAL_friction); // better: use a single material per all spheres
                 currRigidBody->GetBody()->SetRot(randrot);
                 // mrigidBody->addShadowVolumeSceneNode();
                 currRigidBody->setMaterialTexture(0, rockMap);
@@ -321,7 +330,7 @@ class ParticleGenerator {
     double pMassMean;
     double pMassStdDev;  // running std. dev. of mass
 
-    ChSharedPtr<ChMaterialSurface> particle_surface_material; 
+	//particle_surface_material ->std::make_shared<ChMaterialSurface>();
 };
 
 class SoilbinWheel {
@@ -435,9 +444,10 @@ class TestMech {
     ChBodySceneNode* wall3;
     ChBodySceneNode* wall4;
 	ChBodySceneNode* compactor;  // particles pree-compress
-    ChSharedPtr<ChLinkSpring> spring;
-    ChSharedPtr<ChLinkEngine> torqueDriver;
-    ChSharedPtr<ChLinkLockRevolute> spindle;
+
+	std::shared_ptr<ChBody> spring;
+	std::shared_ptr<ChLinkEngine> torqueDriver;
+    std::shared_ptr<ChLinkLockRevolute> spindle;
 
     // GUI-tweaked data
     bool isTorqueApplied;
@@ -548,7 +558,7 @@ class TestMech {
         // truss shouldn't be used for Collisions
         truss->GetBody()->SetCollide(false);
         // create the revolute joint between the wheel and spindle
-        spindle = ChSharedPtr<ChLinkLockRevolute>(new ChLinkLockRevolute);
+        spindle = std::make_shared <ChLinkLockRevolute>(new ChLinkLockRevolute);
         spindle->Initialize(truss->GetBody(), wheelBody->GetBody(),
                             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         mapp.GetSystem()->AddLink(spindle);
@@ -561,11 +571,11 @@ class TestMech {
         mapp.GetSystem()->AddLink(torqueDriver);
         */
         // create a speed between the truss and wheel
-        torqueDriver = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
+        auto torqueDriver = std::make_shared <ChLinkEngine>(new ChLinkEngine);
         torqueDriver->Initialize(truss->GetBody(), wheelBody->GetBody(),
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
-        ChSharedPtr< ChFunction_Const > myspeed( new ChFunction_Const);
+		auto myspeed = std::make_shared<ChFunction_Const>(new ChFunction_Const);
         myspeed->Set_yconst(-(GLOBAL_speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
         torqueDriver->Set_spe_funct(myspeed);
         mapp.GetSystem()->AddLink(torqueDriver);
@@ -580,21 +590,21 @@ class TestMech {
         suspweight->GetBody()->SetCollide(false);
 
         // create the translational joint between the truss and weight load
-        ChSharedPtr<ChLinkLockPrismatic> translational(new ChLinkLockPrismatic);
+		auto translational = std::make_shared<ChLinkLockPrismatic>(new ChLinkLockPrismatic);
         translational->Initialize(
             truss->GetBody(), suspweight->GetBody(),
             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_X)));  // set trans. axis as vertical
         mapp.GetSystem()->AddLink(translational);
 
         // create a spring between spindle truss and weight
-        spring = ChSharedPtr<ChLinkSpring>(new ChLinkSpring);
+       auto spring = std::make_shared <ChLinkSpring>(new ChLinkSpring);
         spring->Initialize(truss->GetBody(), suspweight->GetBody(), false, trussCM, suspweight->GetBody()->GetPos());
-        spring->Set_SpringK(springK);
-        spring->Set_SpringR(springD);
+		spring->Set_SpringK(GLOBAL_spring_stiffness);
+		spring->Set_SpringR(GLOBAL_spring_damping);
         mapp.GetSystem()->AddLink(spring);
 
         // create a prismatic constraint between the weight and the ground
-        ChSharedPtr<ChLinkLockOldham> weightLink(new ChLinkLockOldham);
+		auto weightLink = std::make_shared<ChLinkLockOldham>(new ChLinkLockOldham);
         weightLink->Initialize(
             suspweight->GetBody(), floor->GetBody(),
             ChCoordsys<>(weightCM,
@@ -603,16 +613,18 @@ class TestMech {
     }
 
     // set the spring and damper constants
-    void setSpringKD(double k, double d) {
-        this->spring->Set_SpringK(k);
-        this->spring->Set_SpringR(d);
+    void SetSpringKD(double k, double d) {
+        //this spring->Set_SpringK(k);
+        //this spring->Set_SpringR(d);
     }
 
     // for now, just use the slider value as directly as the torque
     void applyTorque() {
         // note: negative sign is to get Trelleborg tire to spin in the correct direction
-        if (ChSharedPtr<ChFunction_Const> mfun = torqueDriver->Get_tor_funct().DynamicCastTo<ChFunction_Const>())
-            mfun->Set_yconst(-this->currTorque);
+		//if (auto mfun = std::dynamic_pointer_cast<ChFunction_Const>(myspeed->Get_spe_funct()))
+            //mfun->Set_yconst(-currTorque);
+		if (auto mfun = std::dynamic_pointer_cast<ChFunction_Const>(torqueDriver->Get_spe_funct()))
+			mfun->Set_yconst(-currTorque);  
     }
 
     ~TestMech() {
@@ -627,8 +639,8 @@ class TestMech {
         wall4->remove();
 
         // remove joints
-        msys->RemoveLink(spring);
-        msys->Remove(torqueDriver);
+        //msys->RemoveLink(spring);
+        //msys->Remove(torqueDriver);
     }
 };
 
@@ -692,7 +704,7 @@ it)
 
 
 // This is the contact reporter class
-class _contact_reporter_class : public  chrono::ChReportContactCallback2 
+class contact_reporter_class : public  chrono::ChReportContactCallback2
 {
     public:
     ChStreamOutAsciiFile* mfile; // the file to save data into
@@ -1109,11 +1121,12 @@ class MyEventReceiver : public IEventReceiver {
     }
 
     void drawSprings() {
-        std::vector< chrono::ChSharedPtr<chrono::ChLink> >::iterator iterlink = mapp->GetSystem()->Get_linklist()->begin();
-        // .. draw the spring constraints as simplified spring helix
+        std::make_sharevecto< chrono::ChSharedPtr<chrono::ChLink> >::iterator iterlink = mapp->GetSystem()->Get_linklist()->begin();
+
+        //draw the spring constraints as simplified spring helix
         iterlink = mapp->GetSystem()->Get_linklist()->begin();
         while (iterlink != mapp->GetSystem()->Get_linklist()->end()) {
-            if (ChSharedPtr<chrono::ChLinkSpring> mylinkspri = (*iterlink).DynamicCastTo<chrono::ChLinkSpring>())
+            if (std::make_shared<ChLinkSpring> mylinkspri = (*iterlink).DynamicCastTo<chrono::ChLinkSpring>())
                 ChIrrTools::drawSpring(mapp->GetVideoDriver(), 0.05, mylinkspri->GetEndPoint1Abs(),
                                        mylinkspri->GetEndPoint2Abs(), video::SColor(255, 150, 20, 20), 80, 15, true);
             iterlink++;
