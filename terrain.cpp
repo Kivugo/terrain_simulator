@@ -401,7 +401,7 @@ class SoilbinWheel {
 		  system->AddBody(wheel);
 
         // Complete the description.
-        wheel->GetCollisionModel()->BuildModel();
+        //wheel->GetCollisionModel()->BuildModel();
         wheel->GetCollisionModel()->SetFamily(8); // number 0..15, use 3 to mark family of tire
         wheel->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(4);
     }
