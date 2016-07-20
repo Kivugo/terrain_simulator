@@ -1347,7 +1347,7 @@ int main(int argc, char* argv[]) {
     // now, create the testing mechanism and attach the wheel to it
     double binWidth = 1.0;
     double binLen = 2.4;
-	TestMech* mTestMechanism = new TestMech (&mphysicalSystem, mwheel->wheel, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
+	TestMech* mTestMechanism = new TestMech (&mphysicalSystem, mwheel->wheel, application, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
 
     // ***** PARTICLE GENERATOR
     // make a particle generator, that the sceneManager can use to easily dump a bunch of dirt in the bin
