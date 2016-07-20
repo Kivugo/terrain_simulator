@@ -581,7 +581,7 @@ class TestMech {
 		mapp.GetSystem()->AddBody(truss);
 
         // create the revolute joint between the wheel and spindle
-        spindle = std::make_shared <ChLinkLockRevolute>(new ChLinkLockRevolute);
+        spindle = std::make_shared <ChLinkLockRevolute>();
         spindle->Initialize(truss, wheelBody,
                             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         mapp.GetSystem()->AddLink(spindle);
@@ -594,11 +594,11 @@ class TestMech {
         mapp.GetSystem()->AddLink(torqueDriver);
         */
         // create a speed between the truss and wheel
-        auto torqueDriver = std::make_shared <ChLinkEngine>(new ChLinkEngine);
+        torqueDriver = std::make_shared <ChLinkEngine>();
         torqueDriver->Initialize(truss, wheelBody,
                                  ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         torqueDriver->Set_eng_mode(ChLinkEngine::ENG_MODE_SPEED);
-		auto myspeed = std::make_shared<ChFunction_Const>(new ChFunction_Const);
+		auto myspeed = std::make_shared<ChFunction_Const>();
         myspeed->Set_yconst(-(GLOBAL_speed_rpm/60.0)*CH_C_2PI); // convert from rpm to rad/s
         torqueDriver->Set_spe_funct(myspeed);
         mapp.GetSystem()->AddLink(torqueDriver);
@@ -621,21 +621,21 @@ class TestMech {
 		mapp.GetSystem()->AddBody(suspweight);
 
         // create the translational joint between the truss and weight load
-		auto translational = std::make_shared<ChLinkLockPrismatic>(new ChLinkLockPrismatic);
+		auto translational = std::make_shared<ChLinkLockPrismatic>();
         translational->Initialize(
             truss, suspweight,
             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_X)));  // set trans. axis as vertical
         mapp.GetSystem()->AddLink(translational);
 
         // create a spring between spindle truss and weight
-       auto spring = std::make_shared <ChLinkSpring>(new ChLinkSpring);
+        spring = std::make_shared <ChLinkSpring>();
         spring->Initialize(truss, suspweight, false, trussCM, suspweight->GetPos());
 		spring->Set_SpringK(GLOBAL_spring_stiffness);
 		spring->Set_SpringR(GLOBAL_spring_damping);
         mapp.GetSystem()->AddLink(spring);
 
         // create a prismatic constraint between the weight and the ground
-		auto weightLink = std::make_shared<ChLinkLockOldham>(new ChLinkLockOldham);
+		auto weightLink = std::make_shared<ChLinkLockOldham>();
         weightLink->Initialize(
             suspweight, floor,
             ChCoordsys<>(weightCM,
