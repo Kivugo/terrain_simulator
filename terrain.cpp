@@ -111,7 +111,7 @@ class ParticleGenerator {
         this->pMassMean = 0.0;
         this->pMassStdDev = 0.0;
 
-		auto particle_surface_material = std::make_shared<ChMaterialSurface>(new ChMaterialSurface);
+		auto particle_surface_material = std::make_shared<ChMaterialSurface>();
         particle_surface_material->SetFriction(GLOBAL_friction);
         particle_surface_material->SetCohesion(GLOBAL_cohesion_force/GLOBAL_timestep); // cohesion is "Impulse per contact point": transform from "Force per contact point"
         //particle_surface_material->SetRollingFriction(0.0025); // rolling friction parameter [m] . It is a length. Note: if different than 0, computation time is DOUBLE.
