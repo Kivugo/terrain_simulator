@@ -220,22 +220,27 @@ class ParticleGenerator {
 				ChContinuumDistribution my_distribution(mX,mY);
 				double sphrad = my_distribution.GetRandom();
 
-                double sphmass = (4 / 3) * CH_C_PI * pow(sphrad, 3) * sphdens;
-                double sphinertia = (2.0 / 5.0) * sphmass * pow(sphrad, 2);
-
                 ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
                 randrot.Normalize();
                 // randomize spawning position, take stack height into consideration
                 ChVector<> currPos = ChVector<>(-0.5 * bedWidth + ChRandom() * bedWidth,
                                                 stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
                                                 -0.5 * bedLength + ChRandom() * bedLength);
-				auto currRigidBody = std::make_shared <ChBodyEasySphere>(sphrad, this->sphDens, true, true);
-                currRigidBody->SetInertiaXX(ChVector<>(sphinertia, sphinertia, sphinertia));
+
+				auto currRigidBody = std::make_shared <ChBodyEasySphere>(
+                                    sphrad,         // radius of sphere
+                                    this->sphDens,  // density of sphere
+                                    true,           // do collide 
+                                    true);          // do visualize
+
+                currRigidBody->SetPos(currPos); // move to randomized position
+                currRigidBody->SetRot(randrot);
+
+                // set inertia and mass? No, not needed because ChBodyEasySphere auomatically sets mass&inertia from density & size
+
                 currRigidBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
                 //currRigidBody->GetMaterialSurface->SetMaterialSurface(GLOBAL_friction); // better: use a single material per all spheres
-				//auto currRigidBody = std::make_shared<ChBodyEasySphere>(sphrad, this->sphDens, true, true);
-				currRigidBody->SetRot(randrot);
-                //mrigidBody->addShadowVolumeSceneNode();
+				
                 currRigidBody->AddAsset(rockMap);
 
 				msys->AddBody(currRigidBody);
@@ -243,6 +248,7 @@ class ParticleGenerator {
 				app->AssetUpdate(currRigidBody);
 
                 // every time we add a body, increment the counter and mass
+                double sphmass = currRigidBody->GetMass();
                 this->totalParticleMass += sphmass;
                 this->pMass_s2 += sphmass * sphmass;
                 this->pRad_s1 += sphrad;
@@ -252,13 +258,12 @@ class ParticleGenerator {
             // create the boxes
             double boxdens = this->boxDens;
             for (int bi = 0; bi < nBoxes; bi++) {
-                //ChBodySceneNode* currRigidBody;
+                
                 double xscale = 1.5 * ChRandom();  // scale 2 of the 3 dimensions
                 double yscale = 2.0;
                 double zscale = 1.5 * ChRandom();
                 ChVector<> boxSize = ChVector<>(pSize * xscale, pSize * yscale, pSize * zscale);
-                // mass = rho * vol
-                double boxmass = boxSize.x * boxSize.y * boxSize.z * sphdens;
+                
                 // position found the same way as the spheres
                 ChVector<> currPos = ChVector<>(-0.5 * bedWidth + ChRandom() * bedWidth,
                                                 stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 20.0)),
@@ -267,23 +272,30 @@ class ParticleGenerator {
                 // randomize the initial orientation
                 ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
                 randrot.Normalize();
+
                 // create the body object
-                auto currRigidBody = std::make_shared<ChBodyEasyBox>(msys, boxmass, currPos, randrot,
-                                                                             boxSize);
-                // set inertia, friction
-                currRigidBody->SetInertiaXX(
-                    ChVector<>(boxmass * (boxSize.y * boxSize.y + boxSize.z * boxSize.z) / 12.0,
-                               boxmass * (boxSize.x * boxSize.x + boxSize.z * boxSize.z) / 12.0,
-                               boxmass * (boxSize.x * boxSize.x + boxSize.y * boxSize.y) / 12.0));
+                auto currRigidBody = std::make_shared<ChBodyEasyBox>(
+                                                    boxSize.x, // sizes of the box
+                                                    boxSize.y,
+                                                    boxSize.z, 
+                                                    sphdens, // density of box
+                                                    true,  // true = enable collision of this box
+                                                    true); // true = enable visualization of this box
+
+                // set inertia and mass? No, not needed because ChBodyEasyBox auomatically sets mass&inertia from density & size
+                
 				currRigidBody->SetPos(currPos);
 				currRigidBody->SetRot(randrot);
+
 				currRigidBody->GetMaterialSurface()->SetFriction(0.5);
-				currRigidBody->AddAsset(cubeMap);
+				
+                //currRigidBody->AddAsset(cubeMap);
 
 				msys->AddBody(currRigidBody);
 				app->AssetBind(currRigidBody);
 				app->AssetUpdate(currRigidBody);
 
+                double boxmass = currRigidBody->GetMass();
                 this->totalParticles++;
                 this->totalParticleMass += boxmass;
                 this->pMass_s2 += boxmass * boxmass;
@@ -450,8 +462,13 @@ class TestMech {
 		cubeMap->SetTextureFilename(GetChronoDataFile("concrete.jpg"));
 
 		floor = std::make_shared<ChBodyEasyBox>(
-            mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, -0.5 - wallWidth / 2.0, 0),
-            ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, wallWidth, binLength + wallWidth / 2.0));
+            binWidth + wallWidth / 2.0,
+            wallWidth,
+            binLength + wallWidth / 2.0,
+            1000, // density
+            true, // collide
+            true);// visualize
+        floor->SetPos(ChVector<>(0, -0.5 - wallWidth / 2.0, 0));
         floor->SetBodyFixed(true);
         floor->GetMaterialSurface()->SetFriction(0.5);  // NOTE: May need to change this if the walls have effects on the soil response
 		floor->AddAsset(cubeMap);
@@ -460,18 +477,28 @@ class TestMech {
 
         // add some transparent walls to the soilBin, w.r.t. width, length of bin
         // wall 1
-		wall1 = std::make_shared<ChBodyEasyBox>(
-            mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(-binWidth / 2.0 - wallWidth / 2.0, 0, 0),
-            ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
+        wall1 = std::make_shared<ChBodyEasyBox>(
+            wallWidth,
+            binHeight,
+            binLength,
+            1000, // density
+            true, // collide
+            true);// visualize
+        wall1->SetPos(ChVector<>(-binWidth / 2.0 - wallWidth / 2.0, 0, 0));
         wall1->SetBodyFixed(true);
         wall1->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall1->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
 		mapp.GetSystem()->AddBody(wall1);
 
         // wall 2
-		wall2 = std::make_shared<ChBodyEasyBox>(
-            mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(binWidth / 2.0 + wallWidth / 2.0, 0, 0),
-            ChQuaternion<>(1, 0, 0, 0), ChVector<>(wallWidth, binHeight, binLength));
+        wall2 = std::make_shared<ChBodyEasyBox>(
+            wallWidth,
+            binHeight,
+            binLength,
+            1000, // density
+            true, // do collide
+            false);// do not visualize
+        wall2->SetPos(ChVector<>(binWidth / 2.0 + wallWidth / 2.0, 0, 0));
         wall2->SetBodyFixed(true);
         wall2->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall2->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
@@ -479,30 +506,44 @@ class TestMech {
 
         // grab a few more textures to differentiate the walls
         //video::ITexture* wall3tex = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("bluwhite.png").c_str());
-        //video::ITexture* wall4tex =
-            mapp.GetVideoDriver()->getTexture(GetChronoDataFile("logo_chronoengine_alpha.png").c_str());
+        //video::ITexture* wall4tex = mapp.GetVideoDriver()->getTexture(GetChronoDataFile("logo_chronoengine_alpha.png").c_str());
         // wall 3
-		wall3 = std::make_shared<ChBodyEasyBox>(
-            mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, -binLength / 2.0 - wallWidth / 2.0),
-            ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
+        wall3 = std::make_shared<ChBodyEasyBox>(
+            binWidth + wallWidth / 2.0,
+            binHeight,
+            wallWidth,
+            1000, // density
+            true, // do collide
+            false);// do not visualize
+        wall3->SetPos(ChVector<>(0, 0, -binLength / 2.0 - wallWidth / 2.0));
         wall3->SetBodyFixed(true);
         wall3->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall3->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
 		mapp.GetSystem()->AddBody(wall3);
 
         // wall 4
-		wall4 = std::make_shared<ChBodyEasyBox>(
-            mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, 0, binLength / 2.0 + wallWidth / 2.0),
-            ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, binHeight, wallWidth));
+        wall4 = std::make_shared<ChBodyEasyBox>(
+            binWidth + wallWidth / 2.0,
+            binHeight,
+            wallWidth,
+            1000, // density
+            true, // do collide
+            false);// do not visualize
+        wall4->SetPos(ChVector<>(0, 0, binLength / 2.0 + wallWidth / 2.0));
         wall4->SetBodyFixed(true);
         wall4->GetCollisionModel()->SetFamily(4); // number 0..15, use 4 to mark family of walls
         wall4->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);
 		mapp.GetSystem()->AddBody(wall4);
 		
 		//create a compactor to compact the particles before the interaction
-		compactor = std::make_shared<ChBodyEasyBox>(
-			mapp.GetSystem(), mapp.GetSceneManager(), 10.0, ChVector<>(0, GLOBAL_compactor_height, 0),//compactor initial position above soilbin
-			ChQuaternion<>(1, 0, 0, 0), ChVector<>(binWidth + wallWidth / 2.0, wallWidth, binLength + wallWidth / 2.0));
+        compactor = std::make_shared<ChBodyEasyBox>(
+            binWidth + wallWidth / 2.0,
+            wallWidth,
+            binLength + wallWidth / 2.0,
+            1000, // density (but later overridden by SetMass() and SetInertia() )
+            true, // collide
+            true);// visualize
+        compactor->SetPos(ChVector<>(0, GLOBAL_compactor_height, 0)); //compactor initial position above soilbin
 		compactor->SetBodyFixed(true);
 		compactor->GetMaterialSurface()->SetFriction(
 			0.0);
@@ -526,14 +567,19 @@ class TestMech {
 		auto bluMap = std::make_shared<ChTexture>();
 		bluMap->SetTextureFilename(GetChronoDataFile("blu.png"));
         ChVector<> trussCM = wheelBody->GetPos();
-		truss = std::make_shared<ChBodyEasyBox>(mapp.GetSystem(), mapp.GetSceneManager(), GLOBAL_truss_mass, trussCM,
-                                                             QUNIT, ChVector<>(0.2, 0.2, 0.4));
+        truss = std::make_shared<ChBodyEasyBox>(
+            0.2, // sizes x y z of truss
+            0.2,
+            0.4,
+            1000, // density (but later overridden by SetMass()  )
+            false, // false= no collide, truss should not be used for collisions
+            true);// visualize
+        truss->SetPos(trussCM); 
 		truss->AddAsset(bluMap);
-        // truss shouldn't be used for Collisions
-        truss->SetCollide(false);
 		truss->SetMass(GLOBAL_truss_mass);
 		truss->AddAsset(bluMap);
 		mapp.GetSystem()->AddBody(truss);
+
         // create the revolute joint between the wheel and spindle
         spindle = std::make_shared <ChLinkLockRevolute>(new ChLinkLockRevolute);
         spindle->Initialize(truss, wheelBody,
@@ -561,12 +607,17 @@ class TestMech {
         // create a body that will be used as a vehicle weight
         ChVector<> weightCM = ChVector<>(trussCM);
         weightCM.y += 1.0;  // note: this will determine the spring free length
-		suspweight = std::make_shared<ChBodyEasyBox>(mapp.GetSystem(), mapp.GetSceneManager(), weightMass,
-                                                                  weightCM, QUNIT, ChVector<>(0.2, 0.4, 0.2));
+        suspweight = std::make_shared<ChBodyEasyBox>(
+            0.2, // sizes x y z of truss
+            0.4,
+            0.2,
+            1000, // density (but later overridden by SetMass()  )
+            false, // false= no collide, truss should not be used for collisions
+            true);// visualize
+        suspweight->SetPos(weightCM); 
 		suspweight->AddAsset(bluMap);
 		suspweight->SetPos(weightCM);
 		suspweight->SetMass(GLOBAL_suspMass);
-        suspweight->SetCollide(false);
 		mapp.GetSystem()->AddBody(suspweight);
 
         // create the translational joint between the truss and weight load
