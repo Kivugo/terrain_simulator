@@ -1407,9 +1407,7 @@ int main(int argc, char* argv[]) {
 			double horiz_speed = (GLOBAL_speed_rpm / 60 * CH_C_2PI) * (wheel_d_outer / 2); // = w * R
 			mwheel->wheel->SetPos_dt(ChVector<>(0, 0, horiz_speed));
 			mTestMechanism->suspweight->SetPos_dt(ChVector<>(0, 0, horiz_speed));
-			mTestMechanism->truss->SetPos_dt(ChVector<>(0, 0, horiz_speed));
-			
-			
+			mTestMechanism->truss->SetPos_dt(ChVector<>(0, 0, horiz_speed));		
 		}
 		if (mphysicalSystem.GetChTime() > GLOBAL_particle_off_time) {
 			receiver.createParticles() = false;
@@ -1431,14 +1429,18 @@ int main(int argc, char* argv[]) {
 		// draw the custom links
 		receiver.drawSprings();
 		receiver.drawGrid();
+
 		// output relevant soil, wheel data if the tab is selected
 		if (receiver.gad_tab_soil->isVisible())
 			receiver.drawSoilOutput();
 		if (receiver.gad_tab_wheel->isVisible())
 			receiver.drawWheelOutput();
 		receiver.drawWheelOutput();
-		// apply torque to the wheel
+		
+        /* NO! DISABLED BECAUSE IT DOES NOT WORK
+        // apply torque to the wheel
 		mTestMechanism->applyTorque();
+        */
 
 		application.DoStep();
 		if (!application.GetPaused()) {
