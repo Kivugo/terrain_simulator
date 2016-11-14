@@ -1386,6 +1386,8 @@ int main(int argc, char* argv[]) {
 	ChStreamOutAsciiFile output_CMpos_y("data_CMpos_y.txt");
 	ChStreamOutAsciiFile output_CMpos_x("data_CMpos_x.txt");
 	ChStreamOutAsciiFile output_CMpos_z("data_CMpos_z.txt");
+	ChStreamOutAsciiFile output_wheel_acceleration("data_acc.txt");
+	ChStreamOutAsciiFile output_slip_velocity("data_slip_vel.txt");
     
 	GetLog() << "The ID of the tire is " << mwheel->wheel->GetIdentifier() << "\n";
 	GetLog() << "The ID of the wall1 is " << mTestMechanism->wall1->GetIdentifier() << "\n";
@@ -1463,6 +1465,10 @@ int main(int argc, char* argv[]) {
 			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().y << "\n";
 			output_CMpos_x << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().x << "\n";
 			output_CMpos_z << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().z << "\n";
+			double wheel_acceleration =  mwheel->wheel->GetPos_dtdt().z;
+			output_wheel_acceleration << mphysicalSystem.GetChTime() << ", " << wheel_acceleration << "\n";
+			double slip_velocity = (mwheel->wheel->GetWvel_loc().x * (wheel_d_outer / 2)) - (mwheel->wheel->GetPos_dt().z);
+			output_slip_velocity << mphysicalSystem.GetChTime() << ", " << slip_velocity << "\n";
 		}
 	
 		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time) // save contact file after release time
