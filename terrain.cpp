@@ -227,105 +227,70 @@ class ParticleGenerator {
                                                 stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
                                                 -0.5 * bedLength + ChRandom() * bedLength);
 
-				auto currRigidBody = std::make_shared <ChBodyEasySphere>(
+				auto msphereBody = std::make_shared <ChBodyEasySphere>(
                                     sphrad,         // radius of sphere
                                     this->sphDens,  // density of sphere
                                     true,           // do collide 
                                     true);          // do visualize
 
-                currRigidBody->SetPos(currPos); // move to randomized position
-                currRigidBody->SetRot(randrot);
+                msphereBody->SetPos(currPos); // move to randomized position
+                msphereBody->SetRot(randrot);
 
                 // set inertia and mass? No, not needed because ChBodyEasySphere auomatically sets mass&inertia from density & size
 
-                currRigidBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
-				currRigidBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
+                msphereBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
+				msphereBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
 
-                currRigidBody->AddAsset(rockMap);
+                msphereBody->AddAsset(rockMap);
 
-				msys->AddBody(currRigidBody);
-				app->AssetBind(currRigidBody);
-				app->AssetUpdate(currRigidBody);
+				msys->AddBody(msphereBody);
+				app->AssetBind(msphereBody);
+				app->AssetUpdate(msphereBody);
 
 
 
                 // every time we add a body, increment the counter and mass
-                double sphmass = currRigidBody->GetMass();
+                double sphmass = msphereBody->GetMass();
                 this->totalParticleMass += sphmass;
                 this->pMass_s2 += sphmass * sphmass;
                 this->pRad_s1 += sphrad;
                 this->pRad_s2 += sphrad * sphrad;
 
-            }
+				auto mboxBody = std::make_shared<ChBodyEasyBox>(
+					sphrad*1.612, // sizes of the box
+					sphrad*1.612,
+					sphrad*1.612,
+					sphdens, // density of box
+					true,  // true = enable collision of this box
+					true); // true = enable visualization of this box
 
-            // create the boxes
-            double boxdens = this->boxDens;
-            for (int bi = 0; bi < nBoxes; bi++) {
+				// position found the same way as the spheres
+				//ChVector<> currPos = ChVector<>(-0.5 * bedWidth + ChRandom() * bedWidth,
+					//stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
+					//-0.5 * bedLength + ChRandom() * bedLength);
 
-				// A sampled continuous distribution, from x-y values
-				ChMatrixDynamic<> mX(6, 1);
-				ChMatrixDynamic<> mY(6, 1);
-				// set x (diameters) values
-				mX(0) = 0.005;
-				mX(1) = 0.01;
-				mX(2) = 0.02;
-				mX(3) = 0.03;
-				mX(4) = 0.04;
-				mX(5) = 0.05;
-				// set y (probability density, also not normalized) 
-				mY(0) = 0.0;
-				mY(1) = 0.3;
-				mY(2) = 0.6;
-				mY(3) = 0.6;
-				mY(4) = 0.3;
-				mY(5) = 0.0;
-				// scale x if you want to 'stretch' the probability diameters, keeping the ratios
-				double scale_pSize = 0.8;
-				mX = mX*scale_pSize;
-				ChContinuumDistribution my_distribution(mX, mY);
-				double pSize = my_distribution.GetRandom();
-                
-				double xscale = 1.5;  // scale 2 of the 3 dimensions
-				double yscale = 1.5;
-                double zscale = 1.5;
-				ChVector<> boxSize = ChVector<>(pSize * xscale, pSize * yscale, pSize * zscale);
-                
-                // position found the same way as the spheres
-                ChVector<> currPos = ChVector<>(-0.5 * bedWidth + ChRandom() * bedWidth,
-                                                stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
-                                                -0.5 * bedLength + ChRandom() * bedLength);
+				// randomize the initial orientation
+				//ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
+				//randrot.Normalize();
 
-                // randomize the initial orientation
-                ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
-                randrot.Normalize();
+				mboxBody->SetPos(currPos);
+				mboxBody->SetRot(randrot);
 
-                // create the body object
-                auto currRigidBody = std::make_shared<ChBodyEasyBox>(
-                                                    boxSize.x, // sizes of the box
-                                                    boxSize.y,
-                                                    boxSize.z, 
-                                                    sphdens, // density of box
-                                                    true,  // true = enable collision of this box
-                                                    true); // true = enable visualization of this box
+				mboxBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
+				mboxBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
+				mboxBody->AddAsset(rockMap);
 
-                // set inertia and mass? No, not needed because ChBodyEasyBox auomatically sets mass&inertia from density & size
-                
-				currRigidBody->SetPos(currPos);
-				currRigidBody->SetRot(randrot);
+				//currRigidBody->AddAsset(cubeMap);
 
-				currRigidBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
-				currRigidBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force/GLOBAL_timestep);
-				
-                //currRigidBody->AddAsset(cubeMap);
+				msys->AddBody(mboxBody);
+				app->AssetBind(mboxBody);
+				app->AssetUpdate(mboxBody);
 
-				msys->AddBody(currRigidBody);
-				app->AssetBind(currRigidBody);
-				app->AssetUpdate(currRigidBody);
+				double boxmass = mboxBody->GetMass();
+				this->totalParticles++;
+				this->totalParticleMass += boxmass;
+				this->pMass_s2 += boxmass * boxmass;
 
-                double boxmass = currRigidBody->GetMass();
-                this->totalParticles++;
-                this->totalParticleMass += boxmass;
-                this->pMass_s2 += boxmass * boxmass;
             }
 
             // update the statistics
