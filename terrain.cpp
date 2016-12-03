@@ -291,6 +291,18 @@ class ParticleGenerator {
 				this->totalParticleMass += boxmass;
 				this->pMass_s2 += boxmass * boxmass;
 
+				//std::vector<ChVector<> > convexhull;
+				//auto mconvexhullBody = std::make_shared<ChBodyEasyConvexHull>(convexhull,
+					//sphDens,
+					//true,
+					//true,
+					//ChMaterialSurfaceBase::DEM);
+
+				//msys->AddBody(mconvexhullBody);
+				//app->AssetUpdate(mconvexhullBody);
+					
+
+
             }
 
             // update the statistics
