@@ -193,7 +193,7 @@ class ParticleGenerator {
             // kind of guess the height of the particle stack
             double stackHeight = (this->totalParticles / 2000.0) * pSize - 0.2;
             double sphdens = this->sphDens;  // kg/m3
-            // create the spheres
+            // create the particles
             for (int bi = 0; bi < nParticles; bi++) {
                 //ChBodySceneNode* currRigidBody;
                 //double sphrad = pSize + pDev * ChRandom(); **MODIFIED
@@ -234,81 +234,80 @@ class ParticleGenerator {
                                                 stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
                                                 -0.5 * bedLength + ChRandom() * bedLength);
 
-				auto msphereBody = std::make_shared <ChBodyEasySphere>(
+                std::shared_ptr<ChBody> mparticleBody;   // generic pointer to particle (box, or sphere, etc.) 
+
+                // generate a 0..1 random value for choosing the fraction (box, sphere, conv.hull)
+                double randfraction = ChRandom(); 
+
+                // Generate the particle (whose type depends on fraction: box, sphere, etc.)
+
+                if (randfraction < GLOBAL_spheres_fraction) {
+				    // Create a particle as a sphere
+                    auto msphereBody = std::make_shared <ChBodyEasySphere>(
                                     sphrad,         // radius of sphere
                                     this->sphDens,  // density of sphere
                                     true,           // do collide 
                                     true);          // do visualize
+                    // add texture (it can slow down simulation)
+                    //msphereBody->AddAsset(rockMap);
+                   
+                    mparticleBody = msphereBody;
+                }
+                if (randfraction > GLOBAL_spheres_fraction &&
+                    randfraction < GLOBAL_spheres_fraction+GLOBAL_boxes_fraction) {
+                    // Create a particle as a box
+				    auto mboxBody = std::make_shared<ChBodyEasyBox>(
+					                sphrad*1.612, // sizes of the box
+					                sphrad*1.612,
+					                sphrad*1.612,
+					                sphdens, // density of box
+					                true,  // true = enable collision of this box
+					                true); // true = enable visualization of this box
 
-                msphereBody->SetPos(currPos); // move to randomized position
-                msphereBody->SetRot(randrot);
+                    mparticleBody = mboxBody;
+                }
+                if (randfraction > GLOBAL_spheres_fraction+GLOBAL_boxes_fraction) {
+                    // Prepare a vector with vertexes of convex hull in body coordinates:
+				    std::vector<ChVector<> > convexhull;
+                    // generate random vertex cluster for the convex hull,
+                    // each xyz coord of vertex is a random value in the -radius .. +radius
+                    // using the sphere radius as overall size (the sphrad is already randomized
+                    // above, using the distribution)
+                    for (int ivertex = 0; ivertex < 14; ++ivertex) {
+                        ChVector<> vertex (
+                                (ChRandom()*2.0-1.0)*sphrad*1.5,
+                                (ChRandom()*2.0-1.0)*sphrad*1.5,
+                                (ChRandom()*2.0-1.0)*sphrad*1.5 );
+                        convexhull.push_back( vertex );
+                    }
+                    // Create a particle as a convex hull
+				    auto mconvexhullBody = std::make_shared<ChBodyEasyConvexHull>(convexhull,
+					    sphDens,
+					    true,
+					    true);
+                    mparticleBody = mconvexhullBody;
+                }
 
-                // set inertia and mass? No, not needed because ChBodyEasySphere auomatically sets mass&inertia from density & size
+                mparticleBody->SetPos(currPos); // move to randomized position
+                mparticleBody->SetRot(randrot);
 
-                msphereBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
-				msphereBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
+                // set inertia and mass? No, not needed because ChBodyEasy... auomatically sets mass&inertia from density & size
 
-                msphereBody->AddAsset(rockMap);
+                mparticleBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
+				mparticleBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
 
-				msys->AddBody(msphereBody);
-				app->AssetBind(msphereBody);
-				app->AssetUpdate(msphereBody);
+				msys->AddBody(mparticleBody);
+				app->AssetBind(mparticleBody);
+				app->AssetUpdate(mparticleBody);
 
 
 
                 // every time we add a body, increment the counter and mass
-                double sphmass = msphereBody->GetMass();
+                double sphmass = mparticleBody->GetMass();
                 this->totalParticleMass += sphmass;
                 this->pMass_s2 += sphmass * sphmass;
                 this->pRad_s1 += sphrad;
                 this->pRad_s2 += sphrad * sphrad;
-
-				auto mboxBody = std::make_shared<ChBodyEasyBox>(
-					sphrad*1.612, // sizes of the box
-					sphrad*1.612,
-					sphrad*1.612,
-					sphdens, // density of box
-					true,  // true = enable collision of this box
-					true); // true = enable visualization of this box
-
-				// position found the same way as the spheres
-				//ChVector<> currPos = ChVector<>(-0.5 * bedWidth + ChRandom() * bedWidth,
-					//stackHeight + 2 * pSize * ((double)bi / (20.0 * ChRandom() + 50.0)),
-					//-0.5 * bedLength + ChRandom() * bedLength);
-
-				// randomize the initial orientation
-				//ChQuaternion<> randrot(ChRandom(), ChRandom(), ChRandom(), ChRandom());
-				//randrot.Normalize();
-
-				mboxBody->SetPos(currPos);
-				mboxBody->SetRot(randrot);
-
-				mboxBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
-				mboxBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
-				mboxBody->AddAsset(rockMap);
-
-				//currRigidBody->AddAsset(cubeMap);
-
-				msys->AddBody(mboxBody);
-				app->AssetBind(mboxBody);
-				app->AssetUpdate(mboxBody);
-
-				double boxmass = mboxBody->GetMass();
-				this->totalParticles++;
-				this->totalParticleMass += boxmass;
-				this->pMass_s2 += boxmass * boxmass;
-
-				//std::vector<ChVector<> > convexhull;
-				//auto mconvexhullBody = std::make_shared<ChBodyEasyConvexHull>(convexhull,
-					//sphDens,
-					//true,
-					//true,
-					//ChMaterialSurfaceBase::DEM);
-
-				//msys->AddBody(mconvexhullBody);
-				//app->AssetUpdate(mconvexhullBody);
-					
-
 
             }
 
