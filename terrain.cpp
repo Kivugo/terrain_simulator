@@ -71,7 +71,13 @@ bool   GLOBAL_open_gnuplots = true;// if false, do not launch GNUplot at the end
 
 int    GLOBAL_save_contacts_each = 20;
 
-
+// Mixture of spheres in ground. 
+// One can have for example 30% spheres, 20% boxes, 50% convex hulls by using 0.3, 0.2, 0.5
+// Note: the sum of the following values should be 1.
+// Note: use zero for all values for deactivating the granular soil.
+double   GLOBAL_spheres_fraction     = 0;   // percentual of spheres in ground: 0...1 range (1=100%)
+double   GLOBAL_boxes_fraction       = 0.5;   // percentual of boxes in ground: 0...1 range (1=100%)
+double   GLOBAL_convexhulls_fraction = 0.5;   // percentual of convexhulls in ground: 0...1 range (1=100%)
 
 
 
