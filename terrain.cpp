@@ -175,11 +175,12 @@ class ParticleGenerator {
             // reset the timer if we get in here
             this->simTime_lastPcreated = msys->GetChTime();
 
-            // generate some dirt in the bin
-			auto cubeMap = std::make_shared<ChTexture>();
-			cubeMap->SetTextureFilename(GetChronoDataFile("concrete.jpg"));
-			auto rockMap = std::make_shared<ChTexture>();
-			rockMap->SetTextureFilename(GetChronoDataFile("rock.jpg"));
+            // generate some dirt in the bin 
+            // (deactivate it, if this can slow down the simulation and eat too much memory when using many particles...)
+			//auto cubeMap = std::make_shared<ChTexture>();
+			//cubeMap->SetTextureFilename(GetChronoDataFile("concrete.jpg"));
+			//auto rockMap = std::make_shared<ChTexture>();
+			//rockMap->SetTextureFilename(GetChronoDataFile("rock.jpg"));
 
             // I should really check these
             ChCollisionModel::SetDefaultSuggestedEnvelope(0.003);
