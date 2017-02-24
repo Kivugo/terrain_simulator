@@ -22,10 +22,10 @@
 #include "chrono/assets/ChTexture.h"
 #include "chrono/assets/ChTriangleMeshShape.h"
 #include "chrono/geometry/ChTriangleMeshConnected.h"
-
 #include "chrono_irrlicht/ChIrrApp.h"
 #include <algorithm>
 #include <irrlicht.h>
+#include "chrono_vehicle/terrain/DeformableTerrain.h"
 
 using namespace chrono;
 using namespace chrono::geometry;
@@ -43,6 +43,8 @@ using namespace irr::gui;
 
 
 // Easy-to-use user settings - change these to modify the default simulation values
+
+bool   GLOBAL_use_deformable_soil = true;  // if true: use fast SCM soft soil mode, if false: use granular soil of particles
 
 double GLOBAL_speed_rpm = 5;
 double GLOBAL_friction  = 0.6;
@@ -1400,9 +1402,68 @@ int main(int argc, char* argv[]) {
     double binLen = 2.4;
 	TestMech* mTestMechanism = new TestMech (&mphysicalSystem, mwheel->wheel, application, binWidth, binLen, GLOBAL_suspMass, GLOBAL_spring_stiffness, GLOBAL_spring_damping);
 
-    // ***** PARTICLE GENERATOR
+    // ***** PARTICLE GENERATOR FOR GRANULAR SOIL
     // make a particle generator, that the sceneManager can use to easily dump a bunch of dirt in the bin
 	ParticleGenerator* mParticleGen = new ParticleGenerator (&application, &mphysicalSystem, binWidth, binLen);
+
+
+    // *****
+    // THE CONTINUUM DEFORMABLE TERRAIN (as an alternative to granular soil)
+    //
+
+    if (GLOBAL_use_deformable_soil) {
+
+        // Create the 'deformable terrain' object
+        vehicle::DeformableTerrain mterrain(&mphysicalSystem);
+
+        // Optionally, displace/tilt/rotate the terrain reference plane:
+        mterrain.SetPlane(ChCoordsys<>(ChVector<>(0, 0, 0)));
+
+        // Initialize the geometry of the soil: use either a regular grid:
+         mterrain.Initialize(0.2, binWidth, binLen, 15, 30);
+        // or use a height map:
+        //mterrain.Initialize(vehicle::GetDataFile("terrain/height_maps/test64.bmp"), "test64", binWidth, binLen, 0, 0.3);
+
+        // Set the soil terramechanical parameters:
+        mterrain.SetSoilParametersSCM(0.2e6,  // Bekker Kphi
+                                        0,   // Bekker Kc
+                                        1.1, // Bekker n exponent
+                                        0,   // Mohr cohesive limit (Pa)
+                                        30,  // Mohr friction limit (degrees)
+                                        0.01,// Janosi shear coefficient (m)
+                                        4e7, // Elastic stiffness (Pa/m), before plastic yeld, must be > Kphi 
+                                        3e4  // Damping (Pa s/m), proportional to negative vertical speed (optional)
+                                        );
+        mterrain.SetBulldozingFlow(true);    // inflate soil at the border of the rut
+        mterrain.SetBulldozingParameters(55, // angle of friction for erosion of displaced material at the border of the rut
+                                        1, // displaced material vs downward pressed material.
+                                        5,   // number of erosion refinements per timestep
+                                        10); // number of concentric vertex selections subject to erosion
+        // Turn on the automatic level of detail refinement, so a coarse terrain mesh
+        // is automatically improved by adding more points under the wheel contact patch:
+        mterrain.SetAutomaticRefinement(true);
+        mterrain.SetAutomaticRefinementResolution(0.02);
+
+        // Set some visualization parameters: either with a texture, or with falsecolor plot, etc.
+        //mterrain.SetTexture(vehicle::GetDataFile("terrain/textures/grass.jpg"), 16, 16);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_PRESSURE, 0, 30000.2);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_PRESSURE_YELD, 0, 30000.2);
+        mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE, 0, 0.15);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE_PLASTIC, 0, 0.15);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE_ELASTIC, 0, 0.05);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_STEP_PLASTIC_FLOW, 0, 0.0001);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_ISLAND_ID, 0, 8);
+        //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_IS_TOUCHED, 0, 8);
+        //mterrain.GetMesh()->SetWireframe(true);
+
+        // A hack here: when this deformable soil is used, the granular soil 
+        // must disappear... the dirty trick is the following: just force the particle flow to zero!
+        GLOBAL_release_time = 0.2;     // time of wheel release -> sudden!
+        GLOBAL_particle_off_time = 0;  // time of end creation of particles -> no particles at all!
+        GLOBAL_particles_per_second = 0; // flow rate -> no particles at all!
+
+    }
+
 
 	// Bind visualization assets.
 	application.AssetBindAll();
@@ -1491,10 +1552,6 @@ int main(int argc, char* argv[]) {
 			receiver.drawWheelOutput();
 		receiver.drawWheelOutput();
 		
-        /* NO! DISABLED BECAUSE IT DOES NOT WORK
-        // apply torque to the wheel
-		mTestMechanism->applyTorque();
-        */
 
 		application.DoStep();
 

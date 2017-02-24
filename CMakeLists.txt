@@ -59,7 +59,7 @@ project(terrain)
 #--------------------------------------------------------------
 
 find_package(Chrono
-             COMPONENTS Irrlicht fea postprocess
+             COMPONENTS Irrlicht fea postprocess vehicle
              CONFIG)
 
 #--------------------------------------------------------------
