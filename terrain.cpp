@@ -383,16 +383,34 @@ class SoilbinWheel {
 		  wheel->SetMass(GLOBAL_wheelMass);
 		  wheel->SetInertiaXX(GLOBAL_wheelInertia);
 		  wheel->GetMaterialSurface()->SetFriction(0.4f);
-		  wheel->SetCollide(true);
+	
 
-		  // Visualization mesh
+		  // Load a triangle mesh
 		  ChTriangleMeshConnected tireMesh;
-		  tireMesh.LoadWavefrontMesh(GetChronoDataFile("tractor_wheel.obj"), true, true);
+		  //tireMesh.LoadWavefrontMesh(GetChronoDataFile("tractor_wheel_24.obj"));
+          tireMesh.LoadWavefrontMesh(GetChronoDataFile("tractor_wheel.obj"));
+
+          // Visualization mesh: copy from triangle mesh
 		  auto tireMesh_asset = std::make_shared<ChTriangleMeshShape>();
 		  tireMesh_asset->SetMesh(tireMesh);
 		  wheel->AddAsset(tireMesh_asset);
 
-		  // Contact mesh
+          // Contact mesh - NEW approach that does not require .chulls preprocessed files
+          // because it directly uses a triangle mesh
+          // (but a bit slower and less robust)
+          wheel->GetCollisionModel()->ClearModel();
+          wheel->GetCollisionModel()->AddTriangleMesh(tireMesh_asset->GetMesh(),
+                                                false, // not static
+                                                false, // not convex 
+                                                VNULL, // position of the mesh respect to reference of body
+                                                ChMatrix33<>(1), // rotation of the mesh respect to the reference of the body
+                                                0.005  // sphere-swept radius of outer skin (the larger, the more robust, but thicker)
+                                                );
+          wheel->GetCollisionModel()->BuildModel();
+          wheel->SetCollide(true);
+
+          /*        
+		  // Contact mesh - OLD approach that requred preprocessed .chulls files
 		  wheel->GetCollisionModel()->ClearModel();
 		  // Describe the (invisible) colliding shape by adding the 'carcass' decomposed shape and the
 		  // 'knobs'. Since these decompositions are only for 1/15th of the wheel, use for() to pattern them.
@@ -406,6 +424,7 @@ class SoilbinWheel {
 			  wheel->GetCollisionModel()->AddConvexHullsFromFile(myslice, ChVector<>(0, 0, 0), mm);
         }
 		  wheel->GetCollisionModel()->BuildModel();
+        */      
 
 		  // Add wheel body to system
 		  system->AddBody(wheel);
@@ -616,7 +635,7 @@ class TestMech {
         // ******
         // create a body that will be used as a vehicle weight
         ChVector<> weightCM = ChVector<>(trussCM);
-        weightCM.y += 1.0;  // note: this will determine the spring free length
+        weightCM.y() += 1.0;  // note: this will determine the spring free length
         suspweight = std::make_shared<ChBodyEasyBox>(
             0.2, // sizes x y z of truss
             0.4,
@@ -754,15 +773,15 @@ class contact_reporter_class : public chrono::ChReportContactCallback
         // For each contact, this function is executed. 
         // In this example, saves on ascii file:
         //   position xyz, direction xyz, normal impulse, tangent impulse U, tangent impulse V, modelA ID, modelB ID information is saved. 
-        (*mfile)    << pA.x << " " 
-                    << pA.y << " " 
-                    << pA.z << " " 
-                    << plane_coord.Get_A_Xaxis().x << " "
-                    << plane_coord.Get_A_Xaxis().y << " "
-                    << plane_coord.Get_A_Xaxis().z << " "
-                    << react_forces.x << " "
-                    << react_forces.y << " "
-                    << react_forces.z << " "
+        (*mfile)    << pA.x() << " " 
+                    << pA.y() << " " 
+                    << pA.z() << " " 
+                    << plane_coord.Get_A_Xaxis().x() << " "
+                    << plane_coord.Get_A_Xaxis().y() << " "
+                    << plane_coord.Get_A_Xaxis().z() << " "
+                    << react_forces.x() << " "
+                    << react_forces.y() << " "
+                    << react_forces.z() << " "
                     << contactobjA->GetPhysicsItem()->GetIdentifier() << " "
                     << contactobjB->GetPhysicsItem()->GetIdentifier() << "\n";
 
@@ -972,25 +991,25 @@ class MyEventReceiver : public IEventReceiver {
         // wheel CM pos
         ChVector<> cm = mwheel->wheel->GetPos();
         char message5[100];
-        sprintf(message5, "CM pos, x: %4.4g, y: %4.4g, z: %4.4g", cm.x, cm.y, cm.z);
+        sprintf(message5, "CM pos, x: %4.4g, y: %4.4g, z: %4.4g", cm.x(), cm.y(), cm.z());
         text_cmPos = mapp->GetIGUIEnvironment()->addStaticText(core::stringw(message5).c_str(),
                                                                rect<s32>(10, 30, 280, 45), false, false, gad_tab_wheel);
         // wheel CM vel
         ChVector<> cmVel = mwheel->wheel->GetPos_dt();
         char messageV[100];
-        sprintf(messageV, "CM vel, x: %4.4g, y: %4.4g, z: %4.4g", cmVel.x, cmVel.y, cmVel.z);
+        sprintf(messageV, "CM vel, x: %4.4g, y: %4.4g, z: %4.4g", cmVel.x(), cmVel.y(), cmVel.z());
         text_cmVel = mapp->GetIGUIEnvironment()->addStaticText(core::stringw(message5).c_str(),
                                                                rect<s32>(10, 60, 280, 75), false, false, gad_tab_wheel);
         // rxn. forces on spindle, in the local coordinate system
         ChVector<> rxnF = mtester->spindle->Get_react_force();
         char messageF[100];
-        sprintf(messageF, "spindle Rxn. F, x: %4.3g, y: %4.3g, z: %4.3g", rxnF.x, rxnF.y, rxnF.z);
+        sprintf(messageF, "spindle Rxn. F, x: %4.3g, y: %4.3g, z: %4.3g", rxnF.x(), rxnF.y(), rxnF.z());
         text_spindleForces = mapp->GetIGUIEnvironment()->addStaticText(
             core::stringw(message5).c_str(), rect<s32>(10, 90, 280, 105), false, false, gad_tab_wheel);
         // rxn. torques on spindle, in local coordinate system
         ChVector<> rxnT = mtester->spindle->Get_react_torque();
         char messageT[100];
-        sprintf(messageT, "spindle Rxn. T, x: %4.3g, y: %4.3g, z: %4.3g", rxnT.x, rxnT.y, rxnT.z);
+        sprintf(messageT, "spindle Rxn. T, x: %4.3g, y: %4.3g, z: %4.3g", rxnT.x(), rxnT.y(), rxnT.z());
         text_spindleTorque = mapp->GetIGUIEnvironment()->addStaticText(
             core::stringw(messageT).c_str(), rect<s32>(10, 120, 280, 135), false, false, gad_tab_wheel);
 
@@ -1165,7 +1184,7 @@ class MyEventReceiver : public IEventReceiver {
         // wall 1
         ChCoordsys<> wall1Csys = this->mtester->wall1->GetCoord();
         wall1Csys.rot = chrono::Q_from_AngAxis(CH_C_PI / 2.0, VECT_Y);
-        wall1Csys.pos.x += .051;
+        wall1Csys.pos.x() += .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 24, 20, wall1Csys,
                              video::SColor(255, 80, 130, 130), true);
         /*
@@ -1178,13 +1197,13 @@ class MyEventReceiver : public IEventReceiver {
         */
         // wall 3
         ChCoordsys<> wall3Csys = this->mtester->wall3->GetCoord();
-        wall3Csys.pos.z += .051;
+        wall3Csys.pos.z() += .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 10, 20, wall3Csys,
                              video::SColor(255, 80, 130, 130), true);
 
         // wall 4
         ChCoordsys<> wall4Csys = this->mtester->wall4->GetCoord();
-        wall4Csys.pos.z -= .051;
+        wall4Csys.pos.z() -= .051;
         ChIrrTools::drawGrid(this->mapp->GetVideoDriver(), 0.1, 0.05, 10, 20, wall4Csys,
                              video::SColor(255, 80, 130, 130), true);
     }
@@ -1193,22 +1212,22 @@ class MyEventReceiver : public IEventReceiver {
     void drawWheelOutput() {
         ChVector<> cm = mwheel->wheel->GetPos();
         char messageCM[100];
-        sprintf(messageCM, "CM pos, x: %4.4g, y: %4.4g, z: %4.4g", cm.x, cm.y, cm.z);
+        sprintf(messageCM, "CM pos, x: %4.4g, y: %4.4g, z: %4.4g", cm.x(), cm.y(), cm.z());
         text_cmPos->setText(core::stringw(messageCM).c_str());
         // wheel CM vel
         ChVector<> cmVel = mwheel->wheel->GetPos_dt();
         char messageV[100];
-        sprintf(messageV, "CM vel, x: %4.4g, y: %4.4g, z: %4.4g", cmVel.x, cmVel.y, cmVel.z);
+        sprintf(messageV, "CM vel, x: %4.4g, y: %4.4g, z: %4.4g", cmVel.x(), cmVel.y(), cmVel.z());
         text_cmVel->setText(core::stringw(messageV).c_str());
         // rxn. forces on spindle
         ChVector<> rxnF = mtester->spindle->Get_react_force();
         char messageF[100];
-        sprintf(messageF, "spindle Rxn. F, x: %4.3g, y: %4.3g, z: %4.3g", rxnF.x, rxnF.y, rxnF.z);
+        sprintf(messageF, "spindle Rxn. F, x: %4.3g, y: %4.3g, z: %4.3g", rxnF.x(), rxnF.y(), rxnF.z());
         text_spindleForces->setText(core::stringw(messageF).c_str());
         // rxn. torques on spindle
         ChVector<> rxnT = mtester->spindle->Get_react_torque();
         char messageT[100];
-        sprintf(messageT, "spindle Rxn. T, x: %4.3g, y: %4.3g, z: %4.3g", rxnT.x, rxnT.y, rxnT.z);
+        sprintf(messageT, "spindle Rxn. T, x: %4.3g, y: %4.3g, z: %4.3g", rxnT.x(), rxnT.y(), rxnT.z());
         text_spindleTorque->setText(core::stringw(messageT).c_str());
 
         // draw reaction forces on the wheel, to make sure they're the correct output
@@ -1235,6 +1254,23 @@ class MyEventReceiver : public IEventReceiver {
     const bool genParticles() {
         return mgenerator->create_some_falling_items(currParticleSize, currParticleDev, currNparticlesGen,
                                                      0);
+    }
+
+    void repairPoppingParticles() {
+        int n_repaired_particles = 0;
+        for  (auto iterbody = mapp->GetSystem()->Get_bodylist()->begin(); iterbody != mapp->GetSystem()->Get_bodylist()->end(); iterbody++) {
+			// If a particl 'exploded' farther than 20 meters from the origin, move it so some position and fix it
+            if ((*iterbody)->GetPos().Length() > 20) {
+                n_repaired_particles++;
+                (*iterbody)->SetCollide(false);
+                (*iterbody)->SetBodyFixed(true);
+                (*iterbody)->SetPos(ChVector<>(2,1.2,0));
+            }
+        }
+        if (n_repaired_particles) {
+            GetLog() << " Repairing " << n_repaired_particles << " that went to +/- infinite (consider small timestep?). \n";
+        }
+
     }
 
   private:
@@ -1379,8 +1415,9 @@ int main(int argc, char* argv[]) {
     application.SetUserEventReceiver(&receiver);
 
     // set some integrator settings
-    // mphysicalSystem.SetLcpSolverType(ChSystem::LCP_ITERATIVE_APGD);	// see if Toby's works
-    mphysicalSystem.SetSolverType(ChSystem::SOLVER_SOR_MULTITHREAD); // this is fast but not precise
+    //mphysicalSystem.SetSolverType(ChSolver::Type::APGD);	// this is precise but slow
+    //mphysicalSystem.SetSolverType(ChSolver::Type::BARZILAIBORWEIN); // this is precise but slow
+    mphysicalSystem.SetSolverType(ChSolver::Type::SOR_MULTITHREAD); // this is fast but not precise
     mphysicalSystem.SetMaxItersSolverSpeed(70); // remember! increase this for higher precision
     mphysicalSystem.SetMaxItersSolverStab(15);
     mphysicalSystem.SetParallelThreadNumber(4);
@@ -1419,7 +1456,7 @@ int main(int argc, char* argv[]) {
 			mTestMechanism->suspweight->SetBodyFixed(false);
 			mTestMechanism->truss->SetBodyFixed(false);
 			receiver.checkbox_wheelLocked->setChecked(false);
-			mphysicalSystem.SetSolverType(ChSystem::SOLVER_BARZILAIBORWEIN); // this is precise but slower
+			mphysicalSystem.SetSolverType(ChSolver::Type::BARZILAIBORWEIN); // this is precise but slower
 			// set initial wheel horizontal speed.
 			double horiz_speed = (GLOBAL_speed_rpm / 60 * CH_C_2PI) * (wheel_d_outer / 2); // = w * R
 			mwheel->wheel->SetPos_dt(ChVector<>(0, 0, horiz_speed));
@@ -1460,6 +1497,10 @@ int main(int argc, char* argv[]) {
         */
 
 		application.DoStep();
+
+        receiver.repairPoppingParticles(); // very small particles could pop to +/- infinite, slowing down collision detection 20x times, so repair them
+
+
 		if (!application.GetPaused()) {
 			// add bodies to the system?
 			if (receiver.createParticles()) {
@@ -1470,19 +1511,19 @@ int main(int argc, char* argv[]) {
 
 		if (mphysicalSystem.GetChTime() >= GLOBAL_release_time)
 		{
-			output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z << "\n";
-			output_speed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetWvel_loc().x *(60.0 / CH_C_2PI) << "\n";
-			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos_dt().z << "\n";
-			double slip = (mwheel->wheel->GetWvel_loc().x * (wheel_d_outer / 2) / mwheel->wheel->GetPos_dt().z) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1 Braking state
+			output_torque << mphysicalSystem.GetChTime() << ", " << mTestMechanism->torqueDriver->Get_react_torque().z() << "\n";
+			output_speed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetWvel_loc().x() *(60.0 / CH_C_2PI) << "\n";
+			output_horspeed << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos_dt().z() << "\n";
+			double slip = (mwheel->wheel->GetWvel_loc().x() * (wheel_d_outer / 2) / mwheel->wheel->GetPos_dt().z()) - 1.0;  // SAE J670 definition of slip ratio: (w*R/v) -1 Braking state
 			output_slip << mphysicalSystem.GetChTime() << ", " << slip << "\n";
-			double slip1 = 1.0 - (mwheel->wheel->GetPos_dt().z) / (mwheel->wheel->GetWvel_loc().x * (wheel_d_outer / 2)); // definition of slip ratio: 1-(v/w*R) Driving state
+			double slip1 = 1.0 - (mwheel->wheel->GetPos_dt().z()) / (mwheel->wheel->GetWvel_loc().x() * (wheel_d_outer / 2)); // definition of slip ratio: 1-(v/w*R) Driving state
 			output_slip1 << mphysicalSystem.GetChTime() << ", " << slip1 << "\n";
-			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().y << "\n";
-			output_CMpos_x << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().x << "\n";
-			output_CMpos_z << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().z << "\n";
-			double wheel_acceleration =  mwheel->wheel->GetPos_dtdt().z;
+			output_CMpos_y << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().y() << "\n";
+			output_CMpos_x << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().x() << "\n";
+			output_CMpos_z << mphysicalSystem.GetChTime() << ", " << mwheel->wheel->GetPos().z() << "\n";
+			double wheel_acceleration =  mwheel->wheel->GetPos_dtdt().z();
 			output_wheel_acceleration << mphysicalSystem.GetChTime() << ", " << wheel_acceleration << "\n";
-			double slip_velocity = (mwheel->wheel->GetWvel_loc().x * (wheel_d_outer / 2)) - (mwheel->wheel->GetPos_dt().z);
+			double slip_velocity = (mwheel->wheel->GetWvel_loc().x() * (wheel_d_outer / 2)) - (mwheel->wheel->GetPos_dt().z());
 			output_slip_velocity << mphysicalSystem.GetChTime() << ", " << slip_velocity << "\n";
 		}
 	
