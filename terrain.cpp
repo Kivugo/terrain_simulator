@@ -461,6 +461,10 @@ class TestMech {
 	  std::shared_ptr<ChLinkEngine> torqueDriver;
 	  std::shared_ptr<ChLinkLockRevolute> spindle;
 	  std::shared_ptr<ChBodyEasyBox> compactor;  // particles pree-compress
+	  std::shared_ptr<ChBodyEasyBox> slidding_cube;  // sliding body
+	  std::shared_ptr<ChBody> rod;  // connecting rod
+	  std::shared_ptr<ChLinkLockRevolute>cube_rod_link;
+	  std::shared_ptr<ChLinkLockRevolute> truss_rod_link;
 
     // GUI-tweaked data
     bool isTorqueApplied;
@@ -616,6 +620,13 @@ class TestMech {
         spindle->Initialize(truss, wheelBody,
                             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         mapp.GetSystem()->AddLink(spindle);
+
+		//creat link between spindle and rod
+		truss_rod_link = std::make_shared<ChLinkLockRevolute>();
+		truss_rod_link->Initialize(truss, rod, ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
+		mapp.GetSystem()->AddLink(truss_rod_link);
+
+
         /*
         // create a torque between the truss and wheel
         torqueDriver = ChSharedPtr<ChLinkEngine>(new ChLinkEngine);
@@ -840,7 +851,7 @@ class MyEventReceiver : public IEventReceiver {
 
         // **** ***
         // create the GUI items here
-        irr::s32 x0 = 740;
+        irr::s32 x0 = 800;
         irr::s32 y0 = 20;  // box0 top left corner
         // create the tabs for the rig output: NOTE: GUI widget locations are all relative to the TabControl!
         gad_tabbed =
@@ -1615,7 +1626,7 @@ int main(int argc, char* argv[]) {
         mplot2.SetLabelX("t [s]");
         mplot2.SetLabelY("RPM");
         mplot2.Plot("data_speed.txt", 1, 2, "angular vel.", " with lines lt -1 lw 2");
-        mplot2.SetRangeY(-2,10);
+        mplot2.SetRangeY(-2,30);
 
         ChGnuPlot mplot3("__tmp_gnuplot_slip.gpl");
         mplot3.SetGrid();
