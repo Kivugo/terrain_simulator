@@ -9,7 +9,7 @@
 ///////////////////////////////////////////////////
 
 #include "chrono/core/ChRealtimeStep.h"
-#include "chrono/physics/ChSystem.h"
+#include "chrono/physics/ChSystemNSC.h"
 #include "chrono/physics/ChBodyEasy.h"
 
 #include "chrono_irrlicht/ChBodySceneNode.h"
@@ -17,7 +17,7 @@
 #include "chrono_irrlicht/ChIrrAppInterface.h"
 #include "chrono/core/ChDistribution.h"
 #include "chrono_postprocess/ChGnuPlot.h"
-#include "chrono/physics/ChContactContainerBase.h"
+#include "chrono/physics/ChContactContainerNSC.h"
 #include "chrono/physics/ChParticlesClones.h"
 #include "chrono/assets/ChTexture.h"
 #include "chrono/assets/ChTriangleMeshShape.h"
@@ -25,7 +25,7 @@
 #include "chrono_irrlicht/ChIrrApp.h"
 #include <algorithm>
 #include <irrlicht.h>
-#include "chrono_vehicle/terrain/DeformableTerrain.h"
+#include "chrono_vehicle/terrain/SCMDeformableTerrain.h"
 
 using namespace chrono;
 using namespace chrono::geometry;
@@ -119,7 +119,7 @@ class ParticleGenerator {
         this->pMassMean = 0.0;
         this->pMassStdDev = 0.0;
 
-		auto particle_surface_material = std::make_shared<ChMaterialSurface>();
+		auto particle_surface_material = std::make_shared<ChMaterialSurfaceNSC>();
         particle_surface_material->SetFriction(GLOBAL_friction);
         particle_surface_material->SetCohesion(GLOBAL_cohesion_force/GLOBAL_timestep); // cohesion is "Impulse per contact point": transform from "Force per contact point"
         //particle_surface_material->SetRollingFriction(0.0025); // rolling friction parameter [m] . It is a length. Note: if different than 0, computation time is DOUBLE.
@@ -295,8 +295,8 @@ class ParticleGenerator {
 
                 // set inertia and mass? No, not needed because ChBodyEasy... auomatically sets mass&inertia from density & size
 
-                mparticleBody->GetMaterialSurface()->SetFriction(GLOBAL_friction);
-				mparticleBody->GetMaterialSurface()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
+                mparticleBody->GetMaterialSurfaceNSC()->SetFriction(GLOBAL_friction);
+				mparticleBody->GetMaterialSurfaceNSC()->SetCohesion(GLOBAL_cohesion_force / GLOBAL_timestep);
 
 				msys->AddBody(mparticleBody);
 				app->AssetBind(mparticleBody);
@@ -384,7 +384,7 @@ class SoilbinWheel {
 		  wheel->SetPos(mposition);
 		  wheel->SetMass(GLOBAL_wheelMass);
 		  wheel->SetInertiaXX(GLOBAL_wheelInertia);
-		  wheel->GetMaterialSurface()->SetFriction(0.4f);
+		  wheel->GetMaterialSurfaceNSC()->SetFriction(0.4f);
 	
 
 		  // Load a triangle mesh
@@ -505,7 +505,7 @@ class TestMech {
             true);// visualize
         floor->SetPos(ChVector<>(0, -0.5 - wallWidth / 2.0, 0));
         floor->SetBodyFixed(true);
-        floor->GetMaterialSurface()->SetFriction(0.5);  // NOTE: May need to change this if the walls have effects on the soil response
+        floor->GetMaterialSurfaceNSC()->SetFriction(0.5);  // NOTE: May need to change this if the walls have effects on the soil response
 		floor->AddAsset(cubeMap);
 		mapp.GetSystem()->AddBody(floor);
 		
@@ -580,7 +580,7 @@ class TestMech {
             true);// visualize
         compactor->SetPos(ChVector<>(0, GLOBAL_compactor_height, 0)); //compactor initial position above soilbin
 		compactor->SetBodyFixed(true);
-		compactor->GetMaterialSurface()->SetFriction(
+		compactor->GetMaterialSurfaceNSC()->SetFriction(
 			0.0);
 		compactor->GetCollisionModel()->SetFamily(5);// set family name of the compactor
 		compactor->GetCollisionModel()->SetFamilyMaskNoCollisionWithFamily(8);// compactor does not collide with tyre
@@ -765,24 +765,20 @@ it)
 */
 
 
-
 // This is the contact reporter class
-class contact_reporter_class : public chrono::ChReportContactCallback
+class contact_reporter_class : public ChContactContainer::ReportContactCallback
 {
     public:
     ChStreamOutAsciiFile* mfile; // the file to save data into
 
-    virtual bool ReportContactCallback(
-                                const ChVector<>& pA,             ///< get contact pA
-                                const ChVector<>& pB,             ///< get contact pB
-                                const ChMatrix33<>& plane_coord,  ///< get contact plane coordsystem (A column 'X' is contact normal)
-                                const double& distance,           ///< get contact distance
-                                const ChVector<>& react_forces,   ///< get react.forces (if already computed). In coordsystem 'plane_coord'
-                                const ChVector<>& react_torques,  ///< get react.torques, if rolling friction (if already computed).
-                                ChContactable* contactobjA,  ///< get model A (note: some containers may not support it and could be zero!)
-                                ChContactable* contactobjB   ///< get model B (note: some containers may not support it and could be zero!)
-        )
-    {
+	virtual bool OnReportContact(const ChVector<>& pA,
+					const ChVector<>& pB,
+					const ChMatrix33<>& plane_coord,
+					const double& distance,
+					const ChVector<>& react_forces,
+					const ChVector<>& react_torques,
+					ChContactable* modA,
+					ChContactable* modB) override {
         // For each contact, this function is executed. 
         // In this example, saves on ascii file:
         //   position xyz, direction xyz, normal impulse, tangent impulse U, tangent impulse V, modelA ID, modelB ID information is saved. 
@@ -795,8 +791,8 @@ class contact_reporter_class : public chrono::ChReportContactCallback
                     << react_forces.x() << " "
                     << react_forces.y() << " "
                     << react_forces.z() << " "
-                    << contactobjA->GetPhysicsItem()->GetIdentifier() << " "
-                    << contactobjB->GetPhysicsItem()->GetIdentifier() << "\n";
+					<< modA->GetPhysicsItem()->GetIdentifier() << " "
+					<< modB->GetPhysicsItem()->GetIdentifier() << "\n";
 
         return true;  // to continue scanning contacts
     }
@@ -1366,7 +1362,7 @@ class MyEventReceiver : public IEventReceiver {
 
 int main(int argc, char* argv[]) {
     // Create a ChronoENGINE physical system
-    ChSystem mphysicalSystem;
+    ChSystemNSC mphysicalSystem;
 
 
     // Create the Irrlicht visualization (open the Irrlicht device,
@@ -1425,7 +1421,7 @@ int main(int argc, char* argv[]) {
     if (GLOBAL_use_deformable_soil) {
 
         // Create the 'deformable terrain' object
-        vehicle::DeformableTerrain mterrain(&mphysicalSystem);
+        vehicle::SCMDeformableTerrain mterrain(&mphysicalSystem);
 
         // Optionally, displace/tilt/rotate the terrain reference plane:
         mterrain.SetPlane(ChCoordsys<>(ChVector<>(0, 0, 0)));
@@ -1459,7 +1455,7 @@ int main(int argc, char* argv[]) {
         //mterrain.SetTexture(vehicle::GetDataFile("terrain/textures/grass.jpg"), 16, 16);
         //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_PRESSURE, 0, 30000.2);
         //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_PRESSURE_YELD, 0, 30000.2);
-        mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE, 0, 0.15);
+        mterrain.SetPlotType(vehicle::SCMDeformableTerrain::PLOT_SINKAGE, 0, 0.15);
         //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE_PLASTIC, 0, 0.15);
         //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_SINKAGE_ELASTIC, 0, 0.05);
         //mterrain.SetPlotType(vehicle::DeformableTerrain::PLOT_STEP_PLASTIC_FLOW, 0, 0.0001);
