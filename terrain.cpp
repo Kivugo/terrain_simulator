@@ -620,12 +620,14 @@ class TestMech {
         spindle->Initialize(truss, wheelBody,
                             ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
         mapp.GetSystem()->AddLink(spindle);
-
+    /*
+        //****NO THIS CANNOT WORK BECASE rod IS NOT EXISTING. FIRST, CREATE rod AND ADD TO SYSTEM IF YOU WANT THE FOLLOWING CONSTRAINT****
+        //****alessandro
 		//creat link between spindle and rod
 		truss_rod_link = std::make_shared<ChLinkLockRevolute>();
 		truss_rod_link->Initialize(truss, rod, ChCoordsys<>(trussCM, chrono::Q_from_AngAxis(CH_C_PI / 2, VECT_Y)));
 		mapp.GetSystem()->AddLink(truss_rod_link);
-
+    */
 
         /*
         // create a torque between the truss and wheel
